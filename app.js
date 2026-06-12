@@ -1107,7 +1107,7 @@ function renderSetari() {
         <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
           Permite trimiterea unui raport zilnic pe email după fiecare tratament. Gratuit, fără server.<br><br>
           Dacă nu te descurci cu configurarea, trimite-ne un email și te ajutăm pas cu pas:
-          <a href="mailto:denisalvcr@revolut.com" style="color:var(--pink-dark);font-weight:600">denisalvcr@revolut.com</a>
+          <a href="mailto:vibedevd@gmail.com" style="color:var(--pink-dark);font-weight:600">vibedevd@gmail.com</a>
         </p>
 
         <div class="form-group">
