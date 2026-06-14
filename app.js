@@ -12,6 +12,7 @@
 
 const APP_VERSION = '1.0.0';
 const STORAGE_KEY = 'miau_data';
+const TIMER_KEY   = 'miau_timer';
 
 const SIMPTOME = [
   { id: 'muci',            label: '🤧 Muci / nas înfundat' },
@@ -89,6 +90,7 @@ function defaultTratament(partial = {}) {
       activ: false,
       nume: '',
       tip: 'pastile',        // 'pastile' | 'picaturi'
+      doza: '',              // ex: '5mg', '10ml', '2 picături'
       stoc: 0,
       stocInitial: 0,
       pozitie: 'inainte',   // 'inainte' | 'dupa'
@@ -304,6 +306,31 @@ function stopAllTimers() {
   Object.values(S.timers).forEach(t => clearInterval(t.interval));
   S.timers = {};
   releaseWakeLock();
+  localStorage.removeItem(TIMER_KEY);
+}
+
+function saveTimerState(endTs) {
+  if (S.timerStepIdx === null) { localStorage.removeItem(TIMER_KEY); return; }
+  localStorage.setItem(TIMER_KEY, JSON.stringify({
+    data: today(), stepIdx: S.timerStepIdx, done: S.timerDone, endTs: endTs || null
+  }));
+}
+
+function restoreTimerState() {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY);
+    if (!raw) return;
+    const st = JSON.parse(raw);
+    if (st.data !== today()) { localStorage.removeItem(TIMER_KEY); return; }
+    const t = tratamentActiv();
+    if (!t || tratatAziExista(t)) { localStorage.removeItem(TIMER_KEY); return; }
+    S.timerStepIdx = st.stepIdx;
+    if (st.done || !st.endTs || st.endTs <= Date.now()) {
+      S.timerDone = true;
+    } else {
+      S._restoreEndTs = st.endTs; // timer încă rulează — repornim după render
+    }
+  } catch { localStorage.removeItem(TIMER_KEY); }
 }
 
 // ============================================================
@@ -452,7 +479,20 @@ function renderAcasa() {
     ${renderDonatii()}
 
     ${!tratatAzi && pas ? `
+      ${new Date().getHours() >= 20 ? `
+        <div style="background:#FFF0DC;border:1px solid #FFD060;border-radius:10px;
+          padding:10px 14px;margin-bottom:8px;font-size:13px;color:#7A5500;text-align:center">
+          🌙 E târziu — nu uita de tratament!
+        </div>
+      ` : ''}
       <button class="btn btn-outline" id="btn-sari">Sărit azi (nu s-a putut face tratamentul)</button>
+    ` : ''}
+
+    ${!pas ? `
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;
+        font-size:13px;color:var(--text-light)">
+        ⚙️ Protocolul nu e configurat — mergi la <strong>Setări</strong> pentru a-l adăuga.
+      </div>
     ` : ''}
   `;
 }
@@ -693,7 +733,7 @@ function renderStocuri() {
     ${a.activ ? `
       <!-- Antihistaminic -->
       <div class="card card-blue">
-        <div class="card-title">💊 ${a.nume || 'Antihistaminic'}</div>
+        <div class="card-title">💊 ${a.nume || 'Antihistaminic'}${a.doza ? ` — ${a.doza}` : ''}</div>
         <div class="stock-grid">
           <div class="stock-item">
             <div class="stock-icon">${a.tip === 'pastile' ? '💊' : '💧'}</div>
@@ -1223,7 +1263,7 @@ function renderSetari() {
 
 function renderOnboarding() {
   const { step, d } = S.onb;
-  const totalSteps = 7;
+  const totalSteps = 6;
   const pct = Math.round((step / totalSteps) * 100);
 
   const titluriPasi = {
@@ -1232,8 +1272,7 @@ function renderOnboarding() {
     3: 'Protocolul medical',
     4: 'Staloral — stoc inițial',
     5: 'Antihistaminic',
-    6: 'Email rapoarte',
-    7: 'Gata! 🎉'
+    6: 'Gata! 🎉'
   };
 
   return `
@@ -1267,6 +1306,11 @@ function renderOnboardingStep(step, d) {
         <span class="big-paw">🐾</span>
         <h2>Miau</h2>
         <p>Aplicația care te ajută să gestionezi imunoterapia sublinguală a copilului tău — timere, stocuri, simptome, totul într-un loc.</p>
+      </div>
+      <div style="background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;padding:10px 14px;
+        margin-bottom:16px;font-size:12px;color:#7A5500;line-height:1.5">
+        ⚠️ <strong>Notă importantă:</strong> Miau este un instrument de organizare, nu un dispozitiv medical.
+        Urmează întotdeauna indicațiile medicului alergolog. În caz de reacție severă, contactează imediat medicul sau serviciul de urgență.
       </div>
       <div class="form-group">
         <label>Cum numim acest tratament?</label>
@@ -1366,21 +1410,13 @@ function renderOnboardingStep(step, d) {
     `;
 
     case 6: return `
-      <div class="form-group">
-        <label>Email pentru rapoarte zilnice (opțional)</label>
-        <input type="email" id="onb-email" value="${d.email || ''}" placeholder="parinte@email.com">
-        <p class="hint">Dacă adaugi un email, aplicația poate trimite un raport zilnic după ce tratamentul este marcat complet — util când copilul e la bunici sau în tabără.</p>
-        <p class="hint" style="margin-top:8px">Raportul se trimite prin EmailJS (gratuit, 200 mailuri/lună). Configurarea detaliată se face din Setări.</p>
-      </div>
-    `;
-
-    case 7: return `
       <div class="welcome-paw" style="padding-top:20px">
         <span class="big-paw">🎉</span>
         <h2 style="color:var(--success)">Totul e configurat!</h2>
         <p style="margin-top:12px">
           <strong>${d.nume || 'Tratamentul'}</strong> este gata.<br><br>
-          Poți modifica oricând protocolul, stocurile sau setările din tab-ul <strong>Setări ⚙️</strong>.<br><br>
+          Poți modifica oricând protocolul, pașii sau setările din tab-ul <strong>Setări ⚙️</strong>.<br><br>
+          Dacă vrei să primești rapoarte zilnice pe email, configurează <strong>EmailJS</strong> din Setări — e gratuit și durează 10 minute.<br><br>
           Mult succes! 🐾
         </p>
       </div>
@@ -1496,9 +1532,6 @@ function attachOnboardingStepEvents() {
   document.getElementById('onb-anti-nume')?.addEventListener('input', e => d.antiNume = e.target.value.trim());
   document.getElementById('onb-anti-stoc')?.addEventListener('change', e => d.antiStoc = +e.target.value);
   document.getElementById('onb-anti-min')?.addEventListener('change', e => d.antiMinute = +e.target.value);
-
-  // Step 6
-  document.getElementById('onb-email')?.addEventListener('input', e => d.email = e.target.value.trim());
 }
 
 function attachProtocolRowEvents(containerId = 'protocol-rows', protocol = null) {
@@ -1609,10 +1642,6 @@ function onbNext() {
   }
 
   if (step === 6) {
-    d.email = document.getElementById('onb-email')?.value.trim() || '';
-  }
-
-  if (step === 7) {
     // Finalizare — crează tratament
     const t = defaultTratament();
     t.nume      = d.nume;
@@ -1668,10 +1697,13 @@ function pornestePas(idx) {
     return;
   }
 
+  const endTs = Date.now() + pas.minute * 60 * 1000;
+  saveTimerState(endTs);
   document.getElementById('scroll-area').innerHTML = renderTab();
   attachTabEvents();
   startTimer('pas', pas.minute, () => {
     S.timerDone = true;
+    saveTimerState(null);
     bip(880, 0.4); bip(1100, 0.4);
     document.getElementById('scroll-area').innerHTML = renderTab();
     attachTabEvents();
@@ -1861,6 +1893,23 @@ function attachTabEvents() {
 // --- ACASĂ ---
 
 function attachAcasaEvents() {
+  // Restaurare timer dacă aplicația a fost închisă și redeschisă
+  if (S._restoreEndTs) {
+    const remaining = (S._restoreEndTs - Date.now()) / 60000;
+    const endTs = S._restoreEndTs;
+    delete S._restoreEndTs;
+    startTimer('pas', remaining, () => {
+      S.timerDone = true;
+      saveTimerState(null);
+      bip(880, 0.4); bip(1100, 0.4);
+      document.getElementById('scroll-area').innerHTML = renderTab();
+      attachTabEvents();
+    });
+    // Actualizează display-ul timerului
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = formatMMSS(endTs - Date.now());
+  }
+
   // ── Start primul pas (idx = 0) ──
   document.getElementById('btn-start-pas')?.addEventListener('click', () => {
     pornestePas(0);
@@ -2087,6 +2136,11 @@ function showEditAntihistaminic(t) {
         <label>Denumire medicament</label>
         <input type="text" id="anti-nume" value="${a.nume || ''}" placeholder="ex: Xyzal, Zyrtec">
       </div>
+      <div class="form-group">
+        <label>Doză per administrare (opțional)</label>
+        <input type="text" id="anti-doza" value="${a.doza || ''}" placeholder="ex: 5mg, 10ml, 2 picături">
+        <p class="hint">Conform prescripției medicului. Apare în stocuri și rapoarte email.</p>
+      </div>
 
       <div class="form-group">
         <label>Tip</label>
@@ -2143,6 +2197,7 @@ function showEditAntihistaminic(t) {
     a.tip     = tmpTip;
     a.pozitie = tmpPoz;
     a.nume    = document.getElementById('anti-nume').value.trim();
+    a.doza    = document.getElementById('anti-doza').value.trim();
     a.minute  = +(document.getElementById('anti-minute').value) || 20;
     saveData();
     closeOverlay();
@@ -2856,8 +2911,8 @@ function trimiteEmail(t) {
     };
 
     emailjs.send(t.emailjs.serviceId, t.emailjs.templateId, params)
-      .then(() => toast('📧 Raport trimis pe email!'))
-      .catch(() => toast('⚠️ Emailul nu s-a putut trimite.'));
+      .then(() => toast('📧 Raport trimis pe email!', 5000))
+      .catch(() => toast('⚠️ Emailul nu s-a putut trimite. Verifică configurarea EmailJS din Setări.', 6000));
   } catch {}
 }
 
@@ -2884,6 +2939,7 @@ function startTratamentNouDinSetari() {
 
 function init() {
   loadData();
+  restoreTimerState();
 
   // Dacă exista backup de tratamente (tratament nou din setări)
   if (S.data._backup) {
