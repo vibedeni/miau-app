@@ -1381,9 +1381,19 @@ function renderOnboardingStep(step, d) {
       <div id="protocol-rows">
         ${(d.protocol || []).map((p, i) => renderProtocolRow(p, i)).join('')}
       </div>
-      <button class="btn btn-outline" id="btn-adauga-pas" style="margin-top:8px">+ Adaugă pas</button>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-outline" id="btn-adauga-pas" style="flex:1">
+          🩷 Adaugă pas (10u — inițiere)
+        </button>
+        ${(!d.faza || d.faza === 'initiere') ? `
+        <button class="btn btn-outline" id="btn-adauga-pas-100" style="flex:1;border-color:#5B9BD5;color:#3A7ABD">
+          💙 Adaugă doze de 100
+        </button>
+        ` : ''}
+      </div>
       <p class="hint" style="margin-top:12px">
         Pașii se aplică în ordine, ziuă cu ziuă, de la data de start.<br>
+        ${(!d.faza || d.faza === 'initiere') ? 'Adaugă mai întâi toți pașii de 10u (inițiere), apoi cei de 100u (menținere) — se continuă fără pauză.<br>' : ''}
         Poți modifica oricând mai târziu din Setări, fără să pierzi istoricul.
       </p>
     `;
@@ -1457,8 +1467,9 @@ function renderOnboardingStep(step, d) {
 
 function renderProtocolRow(p, i) {
   const isCalendar = p.tipData === 'calendar';
+  const is100u = p.unitati === 100;
   return `
-    <div class="protocol-row" data-idx="${i}" style="flex-wrap:wrap;gap:6px">
+    <div class="protocol-row" data-idx="${i}" style="flex-wrap:wrap;gap:6px;${is100u ? 'border-left:3px solid #5B9BD5;padding-left:8px;background:#F0F6FC;' : ''}">${is100u ? '<span style="font-size:11px;color:#3A7ABD;font-weight:600;width:100%;margin-bottom:2px">💙 Menținere (100u)</span>' : ''}
       <!-- Toggle tip dată -->
       <div style="display:flex;gap:4px;width:100%">
         <button class="toggle-btn btn-small ${!isCalendar ? 'selected' : ''}"
@@ -1528,7 +1539,14 @@ function attachOnboardingStepEvents() {
   // Step 3 — protocol
   document.getElementById('btn-adauga-pas')?.addEventListener('click', () => {
     if (!d.protocol) d.protocol = [];
-    d.protocol.push({ id: uid(), zile: 1, picaturi: 1, unitati: d.faza === 'mentinere' ? 100 : 10, tipData: 'zile' });
+    d.protocol.push({ id: uid(), zile: 1, picaturi: 1, unitati: 10, tipData: 'zile' });
+    document.getElementById('protocol-rows').innerHTML =
+      d.protocol.map((p, i) => renderProtocolRow(p, i)).join('');
+    attachProtocolRowEvents('protocol-rows', d.protocol);
+  });
+  document.getElementById('btn-adauga-pas-100')?.addEventListener('click', () => {
+    if (!d.protocol) d.protocol = [];
+    d.protocol.push({ id: uid(), zile: 1, picaturi: 1, unitati: 100, tipData: 'zile' });
     document.getElementById('protocol-rows').innerHTML =
       d.protocol.map((p, i) => renderProtocolRow(p, i)).join('');
     attachProtocolRowEvents('protocol-rows', d.protocol);
