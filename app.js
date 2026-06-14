@@ -15,16 +15,17 @@ const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
 const SIMPTOME = [
-  { id: 'muci',            label: '🤧 Muci / nas înfundat' },
-  { id: 'tuse',            label: '😮‍💨 Tuse' },
-  { id: 'pete',            label: '🔴 Pete pe piele' },
-  { id: 'mancarime',       label: '👅 Mâncărime limbă / gât' },
-  { id: 'lacrimare',       label: '👁️ Lăcrimare / ochi roșii' },
-  { id: 'stranute',        label: '🤧 Strănutat' },
-  { id: 'oboseala',        label: '😴 Oboseală / irascibilitate' },
-  { id: 'greata',          label: '🤢 Greață' },
-  { id: 'edem',            label: '💊 Edem / umflătură' },
-  { id: 'altele',          label: '📝 Altele' }
+  { id: 'muci',       label: '🤧 Muci / nas înfundat' },
+  { id: 'tuse',       label: '😮‍💨 Tuse' },
+  { id: 'ragusit',    label: '🗣️ Raguseală' },
+  { id: 'pete',       label: '🔴 Pete pe piele' },
+  { id: 'mancarime',  label: '👅 Mâncărime limbă / gât' },
+  { id: 'lacrimare',  label: '👁️ Lăcrimare / ochi roșii' },
+  { id: 'stranute',   label: '🤧 Strănutat' },
+  { id: 'oboseala',   label: '😴 Oboseală / irascibilitate' },
+  { id: 'greata',     label: '🤢 Greață' },
+  { id: 'edem',       label: '💊 Edem / umflătură' },
+  { id: 'altele',     label: '📝 Altele', cuDetalii: true }
 ];
 
 const SEVERITATE = [
@@ -105,6 +106,7 @@ function defaultTratament(partial = {}) {
     email: '',
     emailActiv: false,
     emailjs: { serviceId: '', templateId: '', publicKey: '' },
+    linkStaloral: '', // link custom căutare Staloral (gol = default Farmacia Tei pisică)
     pasiExtra: [], // pași personalizați adăugați după protocolul standard
     istoric: [],             // intrări zilnice
     creatLa: new Date().toISOString()
@@ -584,10 +586,12 @@ function renderDonatii() {
 }
 
 function renderLinkuri(t) {
+  const linkStaloral = t.linkStaloral || LINKS_TEI.initiere;
+  const labelStaloral = t.linkStaloral ? 'Caută Staloral — Farmacia Tei' : 'Caută Staloral pisică — Farmacia Tei';
   return `
-    <a href="${LINKS_TEI.initiere}" target="_blank" class="link-btn">
+    <a href="${linkStaloral}" target="_blank" class="link-btn">
       <span class="link-icon">🛒</span>
-      <span>Caută Staloral pisică — Farmacia Tei</span>
+      <span>${labelStaloral}</span>
       <span class="link-arrow">↗</span>
     </a>
     <a href="${LINK_MEDRADAR}" target="_blank" class="link-btn">
@@ -679,6 +683,13 @@ function renderSimptome() {
                       data-symptom="${s.id}" data-sev="${sv.id}">${sv.emoji} ${sv.label}</button>
                   `).join('')}
                 </div>
+                ${s.cuDetalii ? `
+                  <input type="text" class="altele-detalii" placeholder="Descrie pe scurt..."
+                    value="${sel.detalii || ''}"
+                    onclick="event.stopPropagation()"
+                    style="margin-top:8px;width:100%;padding:8px 10px;border:1px solid #DDF0ED;
+                      border-radius:8px;font-size:13px;box-sizing:border-box">
+                ` : ''}
               ` : ''}
             </div>
           `;
@@ -792,6 +803,7 @@ function renderStocuri() {
 const SIMPTOME_CULORI = {
   muci:       '#4A9B8E',
   tuse:       '#4A7FB5',
+  ragusit:    '#C07840',
   pete:       '#D06060',
   mancarime:  '#E0A840',
   lacrimare:  '#5BA0C8',
@@ -1237,6 +1249,25 @@ function renderSetari() {
       </div>
     </div>
 
+    <!-- Link Staloral custom -->
+    ${t ? `
+    <div class="card">
+      <div class="card-title">🔗 Link căutare Staloral</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:10px;line-height:1.5">
+        Implicit, aplicația caută Staloral pisică pe Farmacia Tei. Dacă tratamentul este pentru alt alergen, poți introduce un link personalizat.
+      </p>
+      <label style="font-size:13px;color:var(--text-light);display:block;margin-bottom:4px">Link personalizat (lasă gol pentru default pisică)</label>
+      <input type="url" id="input-link-staloral"
+        placeholder="https://www.farmaciatei.ro/cautare-produse?q=staloral+..."
+        value="${t.linkStaloral || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-small" id="btn-salveaza-link-staloral" style="width:auto;padding:8px 16px">Salvează</button>
+        ${t.linkStaloral ? `<button class="btn btn-outline btn-small" id="btn-reseteaza-link-staloral" style="width:auto;padding:8px 16px;color:var(--text-light)">Resetează la default</button>` : ''}
+      </div>
+    </div>
+    ` : ''}
+
     <!-- Export / Import -->
     <div class="card">
       <div class="card-title">💾 Export / Import date</div>
@@ -1391,7 +1422,7 @@ function renderOnboardingStep(step, d) {
           </div>
         </div>
         <div class="form-group">
-          <label>Stoc inițial (${d.antiTip === 'picaturi' ? 'doze' : 'pastile'})</label>
+          <label>Stoc inițial</label>
           <input type="number" id="onb-anti-stoc" value="${d.antiStoc || 30}" min="1">
         </div>
         <div class="form-group">
@@ -1765,10 +1796,22 @@ function showEditSimptomeZi(data) {
         }).join('')}
       </div>
 
+      <div id="modal-altele-wrap" style="display:${simSelectate['altele'] ? 'block' : 'none'};margin-bottom:12px">
+        <input type="text" id="modal-altele-detalii" placeholder="Descrie pe scurt..."
+          value="${intrare.simptome?.find(x => x.id === 'altele')?.detalii || ''}"
+          onclick="event.stopPropagation()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px">
+      </div>
+
       <button class="btn btn-primary" id="modal-salveaza">💾 Salvează</button>
       <button class="btn btn-danger" id="modal-sterge-zi" style="margin-top:8px">🗑️ Șterge intrarea acestei zile</button>
     </div>
   `);
+
+  const updateAlteleWrap = () => {
+    const wrap = document.getElementById('modal-altele-wrap');
+    if (wrap) wrap.style.display = simSelectate['altele'] ? 'block' : 'none';
+  };
 
   // Events în modal
   document.querySelectorAll('.modal-sym-row').forEach(row => {
@@ -1803,6 +1846,7 @@ function showEditSimptomeZi(data) {
           });
         });
       }
+      updateAlteleWrap();
     });
   });
 
@@ -1817,7 +1861,12 @@ function showEditSimptomeZi(data) {
   });
 
   document.getElementById('modal-salveaza').addEventListener('click', () => {
-    intrare.simptome = Object.entries(simSelectate).map(([id, severitate]) => ({ id, severitate }));
+    const detaliiAltele = document.getElementById('modal-altele-detalii')?.value.trim() || '';
+    intrare.simptome = Object.entries(simSelectate).map(([id, severitate]) => {
+      const obj = { id, severitate };
+      if (id === 'altele' && detaliiAltele) obj.detalii = detaliiAltele;
+      return obj;
+    });
     intrare.totulOk = false;
     saveData();
     closeOverlay();
@@ -2485,7 +2534,12 @@ function attachSimptomeEvents() {
   });
 
   document.getElementById('btn-salveaza-simptome')?.addEventListener('click', () => {
-    const sim = Object.entries(simptomeSelectate).map(([id, severitate]) => ({ id, severitate }));
+    const detaliiAltele = document.querySelector('.altele-detalii')?.value.trim() || '';
+    const sim = Object.entries(simptomeSelectate).map(([id, severitate]) => {
+      const obj = { id, severitate };
+      if (id === 'altele' && detaliiAltele) obj.detalii = detaliiAltele;
+      return obj;
+    });
     salveazaSimptome(t, sim, false, dataSelectata);
   });
 }
@@ -2769,6 +2823,25 @@ function attachSetariEvents() {
     const t = tratamentActiv();
     if (!t) return;
     showEditProtocol(t);
+  });
+
+  // Link Staloral custom
+  document.getElementById('btn-salveaza-link-staloral')?.addEventListener('click', () => {
+    const t = tratamentActiv();
+    if (!t) return;
+    const val = document.getElementById('input-link-staloral')?.value.trim() || '';
+    t.linkStaloral = val;
+    salveaza();
+    render();
+    showToast('Link Staloral salvat!');
+  });
+  document.getElementById('btn-reseteaza-link-staloral')?.addEventListener('click', () => {
+    const t = tratamentActiv();
+    if (!t) return;
+    t.linkStaloral = '';
+    salveaza();
+    render();
+    showToast('Link resetat la default (pisică).');
   });
 
   // Export
