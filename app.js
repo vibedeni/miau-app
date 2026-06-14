@@ -61,6 +61,8 @@ let S = {
   istoricSubtab: 'grafic', // subtab istoric
   simptomeCurate: false,   // după salvare, arată ecran curat
   simptomeData: null,      // data selectată în tab Simptome (null = azi)
+  ejsExpanded: false,      // formular EmailJS expandat în Setări
+  alerteExpanded: false,   // formular alerte stoc expandat
   wakeLock: null           // referință Wake Lock activ
 };
 
@@ -714,16 +716,31 @@ function renderStocuri() {
     <!-- Praguri alerte -->
     <div class="card">
       <div class="card-title">🔔 Praguri de alertă</div>
-      <div class="form-group">
-        <label>Alertă picături flacon (curent)</label>
-        <input type="number" id="alert-picaturi" value="${s.alertaPicaturi}" min="1" max="50">
-        <p class="hint">Primești alertă când sunt atât de puține picături în flacon (implicit 5 = 10% din 50)</p>
-      </div>
-      <div class="form-group">
-        <label>Alertă flacoane în rezervă</label>
-        <input type="number" id="alert-flacoane" value="${s.alertaFlacoane}" min="0" max="10">
-      </div>
-      <button class="btn btn-primary" id="btn-salveaza-alerte">Salvează praguri</button>
+      ${!S.alerteExpanded ? `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+          padding:10px 12px;background:var(--bg);border-radius:10px">
+          <div style="font-size:13px;color:var(--text-light)">
+            Alertă la <strong>${s.alertaPicaturi} picături</strong> în flacon
+            · <strong>${s.alertaFlacoane} flacoane</strong> rezervă
+          </div>
+          <button class="btn btn-outline btn-small" id="btn-alerte-edit"
+            style="width:auto;padding:6px 12px;font-size:12px">✏️ Editează</button>
+        </div>
+      ` : `
+        <div class="form-group">
+          <label>Alertă picături flacon (curent)</label>
+          <input type="number" id="alert-picaturi" value="${s.alertaPicaturi}" min="1" max="50">
+          <p class="hint">Primești alertă când sunt atât de puține picături în flacon (implicit 5)</p>
+        </div>
+        <div class="form-group">
+          <label>Alertă flacoane în rezervă</label>
+          <input type="number" id="alert-flacoane" value="${s.alertaFlacoane}" min="0" max="10">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" id="btn-alerte-cancel">Anulează</button>
+          <button class="btn btn-primary" id="btn-salveaza-alerte">Salvează</button>
+        </div>
+      `}
     </div>
   `;
 }
@@ -791,11 +808,8 @@ function renderGraficSimptome(t) {
     .sort((a, b) => b.count - a.count);
 
   const svgChart = simptomeActive.length > 0
-    ? renderDonut(simptomeActive, zileCuDateAzi, 30)
-    : `<div style="text-align:center;padding:30px;color:var(--text-light)">
-        <div style="font-size:48px">🌟</div>
-        <p style="margin-top:8px">Niciun simptom înregistrat<br>în ultimele 30 de zile!</p>
-      </div>`;
+    ? renderDonut(simptomeActive, zileCuDateAzi, 14)
+    : renderDonutOk(zileOk, zileFaraMentiune);
 
   return `
     <div class="card">
@@ -837,6 +851,29 @@ function renderGraficSimptome(t) {
         </div>
       ` : ''}
     </div>
+  `;
+}
+
+function renderDonutOk(zileOk, zileFaraMentiune) {
+  const cx = 90, cy = 90, r = 60;
+  const C = 2 * Math.PI * r;
+  const total = 14;
+  const dashOk   = (zileOk / total) * C;
+  const dashGray = (zileFaraMentiune / total) * C;
+  const gap = C - dashOk - dashGray;
+
+  return `
+    <svg viewBox="0 0 180 180" width="180" height="180">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#E0EDEA" stroke-width="24"/>
+      ${zileOk > 0 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+        stroke="#4A9B8E" stroke-width="24"
+        stroke-dasharray="${dashOk.toFixed(2)} ${(C - dashOk).toFixed(2)}"
+        stroke-dashoffset="${(C * 0.25).toFixed(2)}"
+        stroke-linecap="butt"/>` : ''}
+      <text x="${cx}" y="${cy - 8}" text-anchor="middle" font-size="28" font-weight="800" fill="#1E3230">${zileOk}</text>
+      <text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="11" fill="#6A8C88">zile OK</text>
+      <text x="${cx}" y="${cy + 28}" text-anchor="middle" font-size="13" font-weight="700" fill="#4A9B8E">din 14</text>
+    </svg>
   `;
 }
 
@@ -1104,25 +1141,39 @@ function renderSetari() {
       <!-- EmailJS configurare -->
       <div class="card">
         <div class="card-title">⚙️ Configurare EmailJS</div>
-        <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
-          Permite trimiterea unui raport zilnic pe email după fiecare tratament. Gratuit, fără server.<br><br>
-          Dacă nu te descurci cu configurarea, trimite-ne un email și te ajutăm pas cu pas:
-          <a href="mailto:vibedevd@gmail.com" style="color:var(--pink-dark);font-weight:600">vibedevd@gmail.com</a>
-        </p>
-
-        <div class="form-group">
-          <label>Service ID</label>
-          <input type="text" id="ejs-service" value="${t.emailjs?.serviceId || ''}" placeholder="service_xxxxxxx">
-        </div>
-        <div class="form-group">
-          <label>Template ID</label>
-          <input type="text" id="ejs-template" value="${t.emailjs?.templateId || ''}" placeholder="template_xxxxxxx">
-        </div>
-        <div class="form-group">
-          <label>Public Key</label>
-          <input type="text" id="ejs-pubkey" value="${t.emailjs?.publicKey || ''}" placeholder="xxxxxxxxxxxxxx">
-        </div>
-        <button class="btn btn-outline" id="btn-salveaza-emailjs">Salvează configurare EmailJS</button>
+        ${(t.emailjs?.serviceId && !S.ejsExpanded) ? `
+          <div style="display:flex;align-items:center;justify-content:space-between;
+            padding:10px 12px;background:var(--bg);border-radius:10px">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--success)">✅ EmailJS configurat</div>
+              <div style="font-size:12px;color:var(--text-light);margin-top:2px">${t.emailjs.serviceId}</div>
+            </div>
+            <button class="btn btn-outline btn-small" id="btn-ejs-edit"
+              style="width:auto;padding:6px 12px;font-size:12px">✏️ Editează</button>
+          </div>
+        ` : `
+          <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
+            Permite trimiterea unui raport zilnic pe email după fiecare tratament. Gratuit, fără server.<br><br>
+            Dacă nu te descurci cu configurarea, trimite-ne un email și te ajutăm pas cu pas:
+            <a href="mailto:vibedevd@gmail.com" style="color:var(--pink-dark);font-weight:600">vibedevd@gmail.com</a>
+          </p>
+          <div class="form-group">
+            <label>Service ID</label>
+            <input type="text" id="ejs-service" value="${t.emailjs?.serviceId || ''}" placeholder="service_xxxxxxx">
+          </div>
+          <div class="form-group">
+            <label>Template ID</label>
+            <input type="text" id="ejs-template" value="${t.emailjs?.templateId || ''}" placeholder="template_xxxxxxx">
+          </div>
+          <div class="form-group">
+            <label>Public Key</label>
+            <input type="text" id="ejs-pubkey" value="${t.emailjs?.publicKey || ''}" placeholder="xxxxxxxxxxxxxx">
+          </div>
+          <div class="btn-row">
+            ${S.ejsExpanded ? `<button class="btn btn-outline" id="btn-ejs-cancel">Anulează</button>` : ''}
+            <button class="btn btn-outline" id="btn-salveaza-emailjs">Salvează</button>
+          </div>
+        `}
       </div>
     ` : ''}
 
@@ -2524,11 +2575,24 @@ function attachStocuriEvents() {
     });
   });
 
+  document.getElementById('btn-alerte-edit')?.addEventListener('click', () => {
+    S.alerteExpanded = true;
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+  });
+  document.getElementById('btn-alerte-cancel')?.addEventListener('click', () => {
+    S.alerteExpanded = false;
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+  });
   document.getElementById('btn-salveaza-alerte')?.addEventListener('click', () => {
-    t.staloral.alertaPicaturi  = +(document.getElementById('alert-picaturi').value) || 5;
-    t.staloral.alertaFlacoane  = +(document.getElementById('alert-flacoane').value) || 1;
+    t.staloral.alertaPicaturi = +(document.getElementById('alert-picaturi').value) || 5;
+    t.staloral.alertaFlacoane = +(document.getElementById('alert-flacoane').value) || 1;
     saveData();
-    toast('Praguri salvate!');
+    S.alerteExpanded = false;
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+    toast('✅ Praguri salvate!');
   });
 }
 
@@ -2593,6 +2657,16 @@ function attachSetariEvents() {
   });
 
   // EmailJS config
+  document.getElementById('btn-ejs-edit')?.addEventListener('click', () => {
+    S.ejsExpanded = true;
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+  });
+  document.getElementById('btn-ejs-cancel')?.addEventListener('click', () => {
+    S.ejsExpanded = false;
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+  });
   document.getElementById('btn-salveaza-emailjs')?.addEventListener('click', () => {
     const t = tratamentActiv();
     if (!t) return;
@@ -2601,6 +2675,9 @@ function attachSetariEvents() {
     t.emailjs.templateId = document.getElementById('ejs-template')?.value.trim() || '';
     t.emailjs.publicKey  = document.getElementById('ejs-pubkey')?.value.trim() || '';
     saveData();
+    S.ejsExpanded = false;
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
     toast('✅ Configurare EmailJS salvată!');
   });
 
