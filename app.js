@@ -101,16 +101,36 @@ function defaultTratament(partial = {}) {
       flaconCurent: 50,      // picături rămase în flacon curent
       flacoaneRamase: 0,
       alertaPicaturi: 5,     // alertă la 10% din 50
-      alertaFlacoane: 1
+      alertaFlacoane: 1,
+      dataExpirare: ''       // opțional — data expirare flacon curent
     },
     email: '',
     emailActiv: false,
     emailjs: { serviceId: '', templateId: '', publicKey: '' },
-    linkStaloral: '', // link custom căutare Staloral (gol = default Farmacia Tei pisică)
+    linkStaloral: '',       // link custom căutare Staloral (gol = default Farmacia Tei pisică)
+    tranzitieFlacon: false, // true după ce utilizatorul confirmă trecerea la flaconul albastru
     pasiExtra: [], // pași personalizați adăugați după protocolul standard
     istoric: [],             // intrări zilnice
     creatLa: new Date().toISOString()
   };
+}
+
+function defaultProtocolInitiere() {
+  return [
+    { id: uid(), zile: 1, picaturi: 1, unitati: 10, tipData: 'zile' },
+    { id: uid(), zile: 1, picaturi: 2, unitati: 10, tipData: 'zile' },
+    { id: uid(), zile: 1, picaturi: 3, unitati: 10, tipData: 'zile' },
+    { id: uid(), zile: 1, picaturi: 4, unitati: 10, tipData: 'zile' },
+    { id: uid(), zile: 1, picaturi: 5, unitati: 10, tipData: 'zile' },
+  ];
+}
+
+function defaultProtocolMentinere() {
+  return [
+    { id: uid(), zile: 7,    picaturi: 1, unitati: 100, tipData: 'zile' },
+    { id: uid(), zile: 7,    picaturi: 2, unitati: 100, tipData: 'zile' },
+    { id: uid(), zile: 1095, picaturi: 3, unitati: 100, tipData: 'zile' },
+  ];
 }
 
 // ============================================================
@@ -438,6 +458,16 @@ function renderTab() {
 //  TAB: ACASĂ — tratament zilei + timere
 // ============================================================
 
+function esteZiTransitieFlacon(t) {
+  if (t.tranzitieFlacon) return false; // deja confirmat
+  const ziua = ziuaTratamentului(t);
+  const pasAzi = pasProtocolPentruZiua(t, ziua);
+  if (!pasAzi || pasAzi.unitati !== 100) return false;
+  // Verifică dacă protocolul are și pași de 10u (inițiere) înainte
+  const areInitiere = t.protocol.some(p => p.unitati === 10);
+  return areInitiere;
+}
+
 function renderAcasa() {
   const t = tratamentActiv();
   if (!t) return `<div class="empty-state"><div class="empty-icon">😿</div><p>Niciun tratament activ.</p></div>`;
@@ -446,8 +476,27 @@ function renderAcasa() {
   const pas = pasProtocolPentruZiua(t, ziua);
   const tratatAzi = tratatAziExista(t);
   const faza = pas ? (pas.unitati === 10 ? 'Inițiere' : 'Menținere') : 'Menținere';
+  const tranzitie = esteZiTransitieFlacon(t);
 
   return `
+    ${tranzitie ? `
+    <div style="background:linear-gradient(135deg,#EEF4FF,#E0EAFF);border:2px solid #5B9BD5;
+      border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700;color:#1A4A8A;margin-bottom:6px">
+        💙 Ai trecut la faza de Menținere!
+      </div>
+      <div style="font-size:13px;color:#2A5A9A;line-height:1.6;margin-bottom:14px">
+        De azi dozele sunt de <strong>100 unități</strong> (flaconul albastru).<br>
+        Pune un flacon albastru nou și confirmă mai jos — stocul se resetează automat la 50 de picături.
+      </div>
+      <button class="btn" id="btn-confirma-tranzitie"
+        style="background:#3A7ABD;color:white;border:none;width:100%;padding:13px;
+          border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">
+        ✅ Am pus flaconul albastru — continuă
+      </button>
+    </div>
+    ` : ''}
+
     <!-- Card protocol azi -->
     <div class="card card-pink">
       <div class="card-title">Tratamentul de azi</div>
@@ -657,6 +706,11 @@ function renderSimptome() {
         ✅ Totul OK — niciun simptom
       </button>
 
+      <div id="hint-simptome-goale" style="display:none;background:#FFF0DC;border:1px solid #FFD060;
+        border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#7A5500;text-align:center">
+        Bifează cel puțin un simptom sau apasă <strong>Totul OK</strong> dacă nu a fost nimic.
+      </div>
+
       <div class="divider"></div>
       <p style="font-size:13px;color:var(--text-light);margin:10px 0 12px">
         Bifează simptomele${esteAzi ? ' de azi' : ` din ${formatDate(dataSelectata)}`}:
@@ -739,6 +793,37 @@ function renderStocuri() {
         <button class="btn btn-outline btn-small" id="btn-corecteaza">✏️ Corectează</button>
       </div>
       <p class="hint" style="margin-top:8px">Dacă s-au pierdut picături la pornire, folosește „Corectează" pentru a scădea manual.</p>
+
+      <!-- Data expirare opțională -->
+      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+        <label style="font-size:12px;color:var(--text-light);white-space:nowrap">📅 Expiră la:</label>
+        <input type="date" id="input-data-expirare" value="${s.dataExpirare || ''}"
+          style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+        <button class="btn btn-outline btn-small" id="btn-salveaza-expirare"
+          style="width:auto;padding:6px 12px;font-size:12px">Salvează</button>
+      </div>
+
+      ${s.dataExpirare ? (() => {
+        const azi = today();
+        const zileRamase = Math.ceil((new Date(s.dataExpirare) - new Date(azi)) / 86400000);
+        const expirat = zileRamase < 0;
+        const aproape = zileRamase >= 0 && zileRamase <= 30;
+        if (expirat) return `
+          <div style="margin-top:10px;background:#FFF0F0;border:1px solid #F5B0B0;border-radius:10px;
+            padding:10px 12px;font-size:13px;color:#C00000;display:flex;align-items:center;gap:8px">
+            ⚠️ <strong>Flaconul a expirat!</strong> Înlocuiește-l înainte de următorul tratament.
+          </div>`;
+        if (aproape) return `
+          <div style="margin-top:10px;background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;
+            padding:10px 12px;font-size:13px;color:#7A5500;display:flex;align-items:center;gap:8px">
+            ⚠️ Atenție la data de expirare — mai sunt <strong>${zileRamase} ${zileRamase === 1 ? 'zi' : 'zile'}</strong> (${formatDate(s.dataExpirare)}).
+          </div>`;
+        return `
+          <div style="margin-top:10px;background:var(--bg);border-radius:10px;
+            padding:8px 12px;font-size:12px;color:var(--text-light)">
+            📅 Data expirare flacon: <strong>${formatDate(s.dataExpirare)}</strong> — mai sunt ${zileRamase} zile.
+          </div>`;
+      })() : ''}
     </div>
 
     ${a.activ ? `
@@ -1193,17 +1278,26 @@ function renderSetari() {
       <!-- EmailJS configurare -->
       <div class="card">
         <div class="card-title">⚙️ Configurare EmailJS</div>
-        ${(t.emailjs?.serviceId && !S.ejsExpanded) ? `
-          <div style="display:flex;align-items:center;justify-content:space-between;
-            padding:10px 12px;background:var(--bg);border-radius:10px">
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--success)">✅ EmailJS configurat</div>
-              <div style="font-size:12px;color:var(--text-light);margin-top:2px">${t.emailjs.serviceId}</div>
+        ${(t.emailjs?.serviceId && !S.ejsExpanded) ? (() => {
+          const ejs = t.emailjs;
+          const ok = field => ejs[field] ? '✅' : '❌';
+          const complet = ejs.serviceId && ejs.templateId && ejs.publicKey;
+          return `
+          <div style="background:${complet ? '#EDF7F0' : '#FFF8EC'};border:1px solid ${complet ? '#B2DFC0' : '#FFD060'};
+            border-radius:10px;padding:12px 14px;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;color:${complet ? 'var(--success)' : '#7A5500'};margin-bottom:8px">
+              ${complet ? '✅ EmailJS complet configurat' : '⚠️ Configurare incompletă'}
             </div>
-            <button class="btn btn-outline btn-small" id="btn-ejs-edit"
-              style="width:auto;padding:6px 12px;font-size:12px">✏️ Editează</button>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-light)">
+              <div>${ok('serviceId')} Service ID: <strong style="color:#333">${ejs.serviceId || '—'}</strong></div>
+              <div>${ok('templateId')} Template ID: <strong style="color:#333">${ejs.templateId || '—'}</strong></div>
+              <div>${ok('publicKey')} Public Key: <strong style="color:#333">${ejs.publicKey ? ejs.publicKey.slice(0,6) + '••••••' : '—'}</strong></div>
+            </div>
           </div>
-        ` : `
+          <button class="btn btn-outline btn-small" id="btn-ejs-edit"
+            style="width:auto;padding:6px 14px;font-size:12px">✏️ Modifică</button>
+          `;
+        })() : `
           <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
             Permite trimiterea unui raport zilnic pe email după fiecare tratament. Gratuit, fără server.<br><br>
             Dacă nu te descurci cu configurarea, trimite-ne un email și te ajutăm pas cu pas:
@@ -1376,24 +1470,35 @@ function renderOnboardingStep(step, d) {
 
     case 3: return `
       <p style="font-size:14px;color:var(--text-light);margin-bottom:16px">
-        Introdu pașii exact cum ți-a prescris medicul. Ex: 1 zi × 1 picătură × 10u, apoi 2 zile × 2 picături × 10u, etc.
+        ${d.faza === 'mentinere'
+          ? 'Am pre-completat protocolul standard — ajustează dacă medicul a prescris altceva.'
+          : 'Am pre-completat protocolul standard de inițiere — ajustează dacă medicul a prescris altceva.'}
       </p>
       <div id="protocol-rows">
-        ${(d.protocol || []).map((p, i) => renderProtocolRow(p, i)).join('')}
+        ${(() => {
+          if (!d.protocol || d.protocol.length === 0) {
+            d.protocol = d.faza === 'mentinere' ? defaultProtocolMentinere() : defaultProtocolInitiere();
+          }
+          return d.protocol.map((p, i) => renderProtocolRow(p, i)).join('');
+        })()}
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-        <button class="btn btn-outline" id="btn-adauga-pas" style="flex:1">
-          🩷 Adaugă pas (10u — inițiere)
-        </button>
-        ${(!d.faza || d.faza === 'initiere') ? `
-        <button class="btn btn-outline" id="btn-adauga-pas-100" style="flex:1;border-color:#5B9BD5;color:#3A7ABD">
-          💙 Adaugă doze de 100
-        </button>
-        ` : ''}
+        ${d.faza === 'mentinere' ? `
+          <button class="btn btn-outline" id="btn-adauga-pas-100" style="flex:1;border-color:#5B9BD5;color:#3A7ABD">
+            💙 Adaugă pas (100u — menținere)
+          </button>
+        ` : `
+          <button class="btn btn-outline" id="btn-adauga-pas" style="flex:1">
+            🩷 Adaugă pas (10u — inițiere)
+          </button>
+          <button class="btn btn-outline" id="btn-adauga-pas-100" style="flex:1;border-color:#5B9BD5;color:#3A7ABD">
+            💙 Adaugă doze de 100
+          </button>
+        `}
       </div>
       <p class="hint" style="margin-top:12px">
         Pașii se aplică în ordine, ziuă cu ziuă, de la data de start.<br>
-        ${(!d.faza || d.faza === 'initiere') ? 'Adaugă mai întâi toți pașii de 10u (inițiere), apoi cei de 100u (menținere) — se continuă fără pauză.<br>' : ''}
+        ${d.faza !== 'mentinere' ? 'Adaugă mai întâi toți pașii de 10u (inițiere), apoi cei de 100u (menținere) — se continuă fără pauză.<br>' : ''}
         Poți modifica oricând mai târziu din Setări, fără să pierzi istoricul.
       </p>
     `;
@@ -1529,6 +1634,7 @@ function attachOnboardingStepEvents() {
   document.querySelectorAll('[data-faza]').forEach(btn => {
     btn.addEventListener('click', () => {
       d.faza = btn.dataset.faza;
+      d.protocol = []; // resetează ca să primești defaulturile corecte la step 3
       document.querySelectorAll('[data-faza]').forEach(b => {
         b.classList.toggle('selected', b.dataset.faza === d.faza);
         b.classList.toggle('blue', b.dataset.faza === 'mentinere' && b.dataset.faza === d.faza);
@@ -1546,10 +1652,9 @@ function attachOnboardingStepEvents() {
   });
   document.getElementById('btn-adauga-pas-100')?.addEventListener('click', () => {
     if (!d.protocol) d.protocol = [];
-    d.protocol.push({ id: uid(), zile: 1, picaturi: 1, unitati: 100, tipData: 'zile' });
-    document.getElementById('protocol-rows').innerHTML =
-      d.protocol.map((p, i) => renderProtocolRow(p, i)).join('');
-    attachProtocolRowEvents('protocol-rows', d.protocol);
+    defaultProtocolMentinere().forEach(p => d.protocol.push(p));
+    d.faza = 'mentinere'; // comută vizual la menținere — dispar butoanele de 10u
+    renderOnboardingStep_update();
   });
   if (!d.protocol) d.protocol = [];
   attachProtocolRowEvents('protocol-rows', d.protocol);
@@ -1977,6 +2082,21 @@ function attachAcasaEvents() {
     if (el) el.textContent = formatMMSS(endTs - Date.now());
   }
 
+  // ── Confirmare tranziție la flaconul albastru ──
+  document.getElementById('btn-confirma-tranzitie')?.addEventListener('click', () => {
+    const t = tratamentActiv();
+    if (!t) return;
+    t.tranzitieFlacon = true;
+    t.staloral.flaconCurent = 50;
+    t.staloral.flacoaneRamase = Math.max(0, t.staloral.flacoaneRamase - 1);
+    if (t.milestones == null) t.milestones = [];
+    t.milestones.push({ data: today(), label: '💙 Tranziție la Menținere (100u)', detalii: 'Flacon albastru activat, stoc resetat la 50 picături' });
+    saveData();
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+    toast('💙 Flacon albastru activat! Stoc resetat la 50 picături.');
+  });
+
   // ── Start primul pas (idx = 0) ──
   document.getElementById('btn-start-pas')?.addEventListener('click', () => {
     pornestePas(0);
@@ -2003,22 +2123,75 @@ function attachAcasaEvents() {
 
   // Sărit
   document.getElementById('btn-sari')?.addEventListener('click', () => {
-    if (confirm('Marchezi ziua de azi ca „sărit" (tratamentul nu s-a putut face)?')) {
-      const t = tratamentActiv();
-      const pas = pasProtocolPentruZiua(t, ziuaTratamentului(t));
-      t.istoric.push({
-        data: today(), ora: Date.now(), finalizat: false, sarit: true,
-        picaturi: pas?.picaturi || 0, unitati: pas?.unitati || 0,
-        simptome: [], totulOk: false
-      });
-      t.staloral.flaconCurent; // stocul nu scade
-      saveData();
-      stopAllTimers();
-      S.timerStepIdx = null;
-      S.timerDone = false;
-      document.getElementById('scroll-area').innerHTML = renderTab();
-      attachTabEvents();
-      toast('Ziua marcată ca sărit.');
+    const t = tratamentActiv();
+    if (!t) return;
+    const anti = t.antihistaminic;
+
+    if (anti.activ) {
+      // Modal cu întrebare despre antihistaminic
+      showOverlay(`
+        <div class="modal">
+          <div class="modal-title">
+            Marchează ziua ca sărit
+            <button class="close-btn" onclick="closeOverlay()">✕</button>
+          </div>
+          <p style="font-size:14px;color:var(--text-light);margin-bottom:20px;line-height:1.6">
+            Staloral nu s-a administrat azi — stocul <strong>nu</strong> va scădea.<br>
+            Dar ${anti.tip === 'pastile' ? 'pastila' : 'picăturile'} de <strong>${anti.nume || 'antihistaminic'}</strong>?
+          </p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-primary" id="modal-sarit-cu-anti">
+              💊 Da, a luat antihistaminicul — scade 1 din stoc
+            </button>
+            <button class="btn btn-outline" id="modal-sarit-fara-anti">
+              ✕ Nu, nu a luat nimic
+            </button>
+            <button class="btn btn-outline" style="color:var(--text-light)" onclick="closeOverlay()">
+              Anulează
+            </button>
+          </div>
+        </div>
+      `);
+
+      const finalizeazaSarit = (scadeAnti) => {
+        const pas = pasProtocolPentruZiua(t, ziuaTratamentului(t));
+        if (scadeAnti) t.antihistaminic.stoc = Math.max(0, t.antihistaminic.stoc - 1);
+        t.istoric.push({
+          data: today(), ora: Date.now(), finalizat: false, sarit: true,
+          antiScazut: scadeAnti,
+          picaturi: pas?.picaturi || 0, unitati: pas?.unitati || 0,
+          simptome: [], totulOk: false
+        });
+        saveData();
+        closeOverlay();
+        stopAllTimers();
+        S.timerStepIdx = null;
+        S.timerDone = false;
+        document.getElementById('scroll-area').innerHTML = renderTab();
+        attachTabEvents();
+        toast(scadeAnti ? 'Sărit — antihistaminic scăzut din stoc.' : 'Ziua marcată ca sărit.');
+      };
+
+      document.getElementById('modal-sarit-cu-anti')?.addEventListener('click', () => finalizeazaSarit(true));
+      document.getElementById('modal-sarit-fara-anti')?.addEventListener('click', () => finalizeazaSarit(false));
+
+    } else {
+      // Fără antihistaminic — comportament simplu ca înainte
+      if (confirm('Marchezi ziua de azi ca „sărit" (tratamentul nu s-a putut face)?')) {
+        const pas = pasProtocolPentruZiua(t, ziuaTratamentului(t));
+        t.istoric.push({
+          data: today(), ora: Date.now(), finalizat: false, sarit: true,
+          picaturi: pas?.picaturi || 0, unitati: pas?.unitati || 0,
+          simptome: [], totulOk: false
+        });
+        saveData();
+        stopAllTimers();
+        S.timerStepIdx = null;
+        S.timerDone = false;
+        document.getElementById('scroll-area').innerHTML = renderTab();
+        attachTabEvents();
+        toast('Ziua marcată ca sărit.');
+      }
     }
   });
 }
@@ -2513,6 +2686,7 @@ function attachSimptomeEvents() {
   document.querySelectorAll('.symptom-row').forEach(row => {
     row.addEventListener('click', (e) => {
       if (e.target.classList.contains('sev-btn')) return;
+      document.getElementById('hint-simptome-goale')?.style && (document.getElementById('hint-simptome-goale').style.display = 'none');
       const id = row.dataset.id;
       if (simptomeSelectate[id]) {
         delete simptomeSelectate[id];
@@ -2558,6 +2732,14 @@ function attachSimptomeEvents() {
       if (id === 'altele' && detaliiAltele) obj.detalii = detaliiAltele;
       return obj;
     });
+    if (sim.length === 0) {
+      const hint = document.getElementById('hint-simptome-goale');
+      if (hint) {
+        hint.style.display = 'block';
+        hint.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
     salveazaSimptome(t, sim, false, dataSelectata);
   });
 }
@@ -2625,11 +2807,21 @@ function attachStocuriEvents() {
 
   document.getElementById('btn-flacon-nou')?.addEventListener('click', () => {
     t.staloral.flaconCurent = 50;
+    t.staloral.dataExpirare = ''; // resetează data expirare la flacon nou
     if (t.staloral.flacoaneRamase > 0) t.staloral.flacoaneRamase--;
     saveData();
     document.getElementById('scroll-area').innerHTML = renderTab();
     attachTabEvents();
     toast('🆕 Flacon nou deschis — 50 picături');
+  });
+
+  document.getElementById('btn-salveaza-expirare')?.addEventListener('click', () => {
+    const val = document.getElementById('input-data-expirare')?.value || '';
+    t.staloral.dataExpirare = val;
+    saveData();
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+    toast(val ? `📅 Data expirare salvată: ${formatDate(val)}` : 'Data expirare ștearsă.');
   });
 
   document.getElementById('btn-corecteaza')?.addEventListener('click', () => {
