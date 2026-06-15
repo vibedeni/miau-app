@@ -34,19 +34,10 @@ const SEVERITATE = [
   { id: 'sever', label: 'Sever', emoji: '🔴' }
 ];
 
-// Link-uri — actualizează dacă se schimbă URL-urile
-const LINKS_TEI = {
-  initiere:  'https://www.farmaciatei.ro/cautare-produse?q=staloral+pisica',
-  mentinere: 'https://www.farmaciatei.ro/cautare-produse?q=staloral+pisica'
-};
+const LINK_STALORAL_DEFAULT = 'https://comenzi.farmaciatei.ro/cauti/staloral+pisica?product_category=1';
 const LINK_MEDRADAR  = 'https://www.medradar.ro/';
 const LINK_PROSPECT  = 'https://anmdm.ro/medicamente/cautare-prospect?q=staloral';
 const LINK_DONATIE   = 'https://revolut.me/denisalvcr';
-const DONATII = [
-  { suma: 15, label: '☕ 15 lei' },
-  { suma: 25, label: '🌟 25 lei' },
-  { suma: 50, label: '💛 50 lei' }
-];
 
 // ============================================================
 //  STARE GLOBALĂ
@@ -227,6 +218,31 @@ function pasProtocolPentruZiua(tratament, ziua) {
 
 function tratatAziExista(tratament) {
   return tratament.istoric.some(e => e.data === today());
+}
+
+function zileRamasePas(tratament, ziua) {
+  const azi = today();
+
+  // Pas calendaristic — până la dataEnd
+  for (const pas of tratament.protocol) {
+    if (pas.tipData === 'calendar' && pas.dataStart && pas.dataEnd) {
+      if (azi >= pas.dataStart && azi <= pas.dataEnd) {
+        const end = new Date(pas.dataEnd); end.setHours(0,0,0,0);
+        const now = new Date(); now.setHours(0,0,0,0);
+        return Math.ceil((end - now) / 86400000) + 1;
+      }
+    }
+  }
+
+  // Pas cu zile — numără câte zile mai rămân în blocul curent
+  let contor = 0;
+  for (const pas of tratament.protocol) {
+    if (pas.tipData === 'calendar') continue;
+    const startPas = contor + 1;
+    contor += (pas.zile || 0);
+    if (ziua <= contor) return contor - ziua + 1;
+  }
+  return null; // ultimul pas (nelimitat)
 }
 
 function getOS() {
@@ -477,6 +493,7 @@ function renderAcasa() {
   const tratatAzi = tratatAziExista(t);
   const faza = pas ? (pas.unitati === 10 ? 'Inițiere' : 'Menținere') : 'Menținere';
   const tranzitie = esteZiTransitieFlacon(t);
+  const zileRamase = pas ? zileRamasePas(t, ziua) : null;
 
   return `
     ${tranzitie ? `
@@ -508,6 +525,17 @@ function renderAcasa() {
             <span>× ${pas.unitati} unități</span>
           </div>
           <span class="protocol-phase ${faza === 'Menținere' ? 'mentinere' : ''}">${faza} — ${pas.picaturi * pas.unitati} unități total</span>
+          ${zileRamase !== null ? `
+            <div style="margin-top:8px;font-size:12px;color:var(--text-light)">
+              ${zileRamase === 1
+                ? '⏳ Ultima zi din doza curentă'
+                : `⏳ Mai ${zileRamase === 2 ? 'e' : 'sunt'} <strong>${zileRamase} ${zileRamase === 1 ? 'zi' : 'zile'}</strong> din doza curentă`}
+            </div>
+          ` : `
+            <div style="margin-top:8px;font-size:12px;color:var(--text-light)">
+              ⏳ Doza de menținere — continuă
+            </div>
+          `}
         ` : '<p style="color:var(--text-light)">Protocolul nu este configurat.</p>'}
       </div>
     </div>
@@ -612,37 +640,40 @@ function renderTimere(t) {
 function renderDonatii() {
   return `
     <div style="background:linear-gradient(135deg,#FFF8EC,#FFF0DC);border-radius:14px;
-      padding:14px 16px;margin-bottom:12px;border:1px solid #FFE0A0">
-      <div style="font-size:13px;font-weight:700;color:#7A5500;margin-bottom:4px">
-        💛 Susține aplicația
+      padding:14px 16px;margin-bottom:12px;border:1px solid #FFE0A0;
+      display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#7A5500;margin-bottom:2px">
+          💛 Susține aplicația
+        </div>
+        <div style="font-size:12px;color:#A07020;line-height:1.4">
+          Miau e gratuită și fără reclame.<br>O cafea pentru developer (10–50 lei) ajută mult!
+        </div>
       </div>
-      <div style="font-size:12px;color:#A07020;margin-bottom:10px;line-height:1.4">
-        Miau e gratuită și fără reclame. Dacă îți e de folos, o cafea pentru developer ajută mult!
-      </div>
-      <div style="display:flex;gap:8px">
-        ${DONATII.map(d => `
-          <a href="${LINK_DONATIE}?amount=${d.suma}" target="_blank" rel="noopener"
-            style="flex:1;display:block;text-align:center;padding:10px 4px;
-              background:white;border:2px solid #FFD060;border-radius:10px;
-              font-size:13px;font-weight:700;color:#7A5500;text-decoration:none;
-              box-shadow:0 1px 4px rgba(0,0,0,0.06)">
-            ${d.label}
-          </a>
-        `).join('')}
-      </div>
+      <a href="${LINK_DONATIE}" target="_blank" rel="noopener"
+        style="display:block;text-align:center;padding:10px 16px;white-space:nowrap;
+          background:white;border:2px solid #FFD060;border-radius:10px;
+          font-size:13px;font-weight:700;color:#7A5500;text-decoration:none;
+          box-shadow:0 1px 4px rgba(0,0,0,0.06);flex-shrink:0">
+        ☕ Donează
+      </a>
     </div>
   `;
 }
 
 function renderLinkuri(t) {
-  const linkStaloral = t.linkStaloral || LINKS_TEI.initiere;
-  const labelStaloral = t.linkStaloral ? 'Caută Staloral — Farmacia Tei' : 'Caută Staloral pisică — Farmacia Tei';
+  const linkStaloral = t.linkStaloral || LINK_STALORAL_DEFAULT;
   return `
-    <a href="${linkStaloral}" target="_blank" class="link-btn">
-      <span class="link-icon">🛒</span>
-      <span>${labelStaloral}</span>
-      <span class="link-arrow">↗</span>
-    </a>
+    <div style="display:flex;align-items:center;gap:6px">
+      <a href="${linkStaloral}" target="_blank" class="link-btn" style="flex:1">
+        <span class="link-icon">🛒</span>
+        <span>Caută Staloral — Farmacia Tei</span>
+        <span class="link-arrow">↗</span>
+      </a>
+      <button id="btn-edit-link-staloral" title="Schimbă linkul"
+        style="flex-shrink:0;background:none;border:1.5px solid var(--border);border-radius:8px;
+          padding:8px 10px;font-size:14px;cursor:pointer;color:var(--text-light)">✏️</button>
+    </div>
     <a href="${LINK_MEDRADAR}" target="_blank" class="link-btn">
       <span class="link-icon">💊</span>
       <span>MedRadar — stocuri farmacii</span>
@@ -1128,7 +1159,7 @@ function renderSetari() {
     ${t ? `
       <!-- Protocol -->
       <div class="card">
-        <div class="card-title">📋 Protocol curent — ${t.nume}</div>
+        <div class="card-title">📋 Protocol complet — ${t.nume}</div>
         <div style="margin-bottom:12px">
           ${t.protocol.map((p, i) => {
             const desc = p.tipData === 'calendar'
@@ -1144,6 +1175,10 @@ function renderSetari() {
         </div>
         <button class="btn btn-outline" id="btn-edit-protocol">✏️ Modifică protocolul</button>
         <p class="hint important" style="margin-top:8px">Modificarea protocolului nu resetează istoricul sau stocurile.</p>
+        <div style="background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#7A5500;line-height:1.6">
+          💡 Protocolul e complet, de la ziua 1. App-ul calculează automat în ce zi ești azi față de data de start.<br>
+          Dacă tratamentul a început deja și nu vrei să introduci istoricul, poți introduce doar pașii de acum și să schimbi data de start pe ziua de azi.
+        </div>
       </div>
 
       <!-- Flux zilnic tratament -->
@@ -1352,7 +1387,7 @@ function renderSetari() {
       </p>
       <label style="font-size:13px;color:var(--text-light);display:block;margin-bottom:4px">Link personalizat (lasă gol pentru default pisică)</label>
       <input type="url" id="input-link-staloral"
-        placeholder="https://www.farmaciatei.ro/cautare-produse?q=staloral+..."
+        placeholder="https://comenzi.farmaciatei.ro/cauti/staloral+..."
         value="${t.linkStaloral || ''}"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px">
       <div style="display:flex;gap:8px">
@@ -1500,6 +1535,11 @@ function renderOnboardingStep(step, d) {
         Pașii se aplică în ordine, ziuă cu ziuă, de la data de start.<br>
         ${d.faza !== 'mentinere' ? 'Adaugă mai întâi toți pașii de 10u (inițiere), apoi cei de 100u (menținere) — se continuă fără pauză.<br>' : ''}
         Poți modifica oricând mai târziu din Setări, fără să pierzi istoricul.
+      </p>
+      <div style="background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#7A5500;line-height:1.6">
+        💡 <strong>Tratamentul a început deja?</strong> Ai două variante:<br>
+        • Introduci protocolul complet de la ziua 1 și setezi data de start corectă — app-ul se poziționează singur pe ziua de azi.<br>
+        • Sau introduci doar pașii de acum înainte și setezi data de start pe ziua de azi — mai simplu, dar fără istoric anterior.
       </p>
     `;
 
@@ -3033,6 +3073,18 @@ function attachSetariEvents() {
     const t = tratamentActiv();
     if (!t) return;
     showEditProtocol(t);
+  });
+
+  // Buton ✏️ lângă linkul Staloral de pe Acasă
+  document.getElementById('btn-edit-link-staloral')?.addEventListener('click', () => {
+    S.tab = 'setari';
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === 'setari'));
+    attachTabEvents();
+    setTimeout(() => {
+      document.getElementById('input-link-staloral')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('input-link-staloral')?.focus();
+    }, 100);
   });
 
   // Link Staloral custom
