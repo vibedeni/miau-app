@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -3115,7 +3115,7 @@ function attachSetariEvents() {
     t.linkStaloral = val;
     salveaza();
     render();
-    showToast('Link Staloral salvat!');
+    toast('Link Staloral salvat!');
   });
   document.getElementById('btn-reseteaza-link-staloral')?.addEventListener('click', () => {
     const t = tratamentActiv();
@@ -3123,7 +3123,7 @@ function attachSetariEvents() {
     t.linkStaloral = '';
     salveaza();
     render();
-    showToast('Link resetat la default (pisică).');
+    toast('Link resetat la default (pisică).');
   });
 
   // Export
