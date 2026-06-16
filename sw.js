@@ -1,7 +1,7 @@
 // Service Worker — Miau App
 // Permite funcționarea offline după prima încărcare
 
-const CACHE_NAME = 'miau-v1.7';
+const CACHE_NAME = 'miau-v1.8';
 const FILES = [
   './index.html',
   './style.css',

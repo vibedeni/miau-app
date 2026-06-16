@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.8';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -375,9 +375,29 @@ function restoreTimerState() {
 //  SUNET (bip simplu cu Web Audio)
 // ============================================================
 
+let _audioCtx = null;
+
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // iOS suspendă contextul dacă nu e user gesture — rezumăm
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+// Apelat la primul tap — deblochează AudioContext pe iOS
+function initAudio() {
+  try { getAudioCtx(); } catch {}
+  document.removeEventListener('touchstart', initAudio);
+  document.removeEventListener('mousedown', initAudio);
+}
+document.addEventListener('touchstart', initAudio, { once: true });
+document.addEventListener('mousedown', initAudio, { once: true });
+
 function bip(frecventa = 880, durata = 0.3) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
@@ -3116,11 +3136,24 @@ function attachSetariEvents() {
   document.getElementById('import-file')?.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Fișier prea mare (>5MB) e suspect
+    if (file.size > 5 * 1024 * 1024) {
+      toast('❌ Fișier prea mare — nu pare un export Miau.');
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (!data.tratamente) throw new Error('Format invalid');
+        const eroare = valideazaImport(data);
+        if (eroare) {
+          toast(`❌ ${eroare}`);
+          e.target.value = '';
+          return;
+        }
         if (confirm(`Importă ${data.tratamente.length} tratament(e)? Datele existente vor fi înlocuite.`)) {
           S.data = data;
           saveData();
@@ -3128,8 +3161,9 @@ function attachSetariEvents() {
           toast('✅ Date importate cu succes!');
         }
       } catch {
-        toast('❌ Fișier invalid!');
+        toast('❌ Fișier invalid — nu este un JSON corect.');
       }
+      e.target.value = '';
     };
     reader.readAsText(file);
   });
@@ -3203,6 +3237,21 @@ function showEditProtocol(t) {
 // ============================================================
 //  EXPORT / IMPORT JSON
 // ============================================================
+
+function valideazaImport(data) {
+  if (!data || typeof data !== 'object') return 'Fișierul nu conține date valide.';
+  if (!Array.isArray(data.tratamente)) return 'Lipsesc tratamentele — nu pare un export Miau.';
+  if (data.tratamente.length === 0) return 'Fișierul nu conține niciun tratament.';
+
+  for (const t of data.tratamente) {
+    if (typeof t !== 'object' || !t.id) return 'Structură invalidă — fișier corupt sau din altă sursă.';
+    if (!Array.isArray(t.protocol)) return `Tratamentul "${t.nume || t.id}" are protocolul corupt.`;
+    if (!Array.isArray(t.istoric)) return `Tratamentul "${t.nume || t.id}" are istoricul corupt.`;
+    if (!t.staloral || typeof t.staloral !== 'object') return `Tratamentul "${t.nume || t.id}" are stocurile corupte.`;
+  }
+
+  return null; // totul ok
+}
 
 function exportJSON() {
   const json = JSON.stringify(S.data, null, 2);
@@ -3286,6 +3335,14 @@ function init() {
   }
 
   render();
+
+  // Dacă timer-ul era activ și app-ul s-a reîncărcat pe alt tab, întoarce-l pe Acasă
+  if (S._restoreEndTs) {
+    S.tab = 'acasa';
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === 'acasa'));
+    attachTabEvents();
+  }
 }
 
 // Pornire
