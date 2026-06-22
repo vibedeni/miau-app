@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.16';
+const APP_VERSION = '1.17';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -162,6 +162,21 @@ function saveData() {
   } catch (e) {
     toast('⚠️ Eroare la salvare — memoria plină?');
   }
+}
+
+const TEME_VALIDE = ['menta', 'soare', 'salvie', 'nocturn'];
+
+function aplicaTema(tema) {
+  if (!TEME_VALIDE.includes(tema)) tema = 'menta';
+  if (tema === 'menta') document.documentElement.removeAttribute('data-tema');
+  else document.documentElement.setAttribute('data-tema', tema);
+  localStorage.setItem('miau_tema', tema);
+  const culoriBara = { menta:'#4A9B8E', soare:'#F26A4B', salvie:'#2F5D50', nocturn:'#161C2E' };
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', culoriBara[tema]);
+}
+
+function temaCurenta() {
+  return localStorage.getItem('miau_tema') || 'menta';
 }
 
 function tratamentActiv() {
@@ -1243,7 +1258,41 @@ function renderListaIstorica(t) {
 
 function renderSetari() {
   const t = tratamentActiv();
+  const tema = temaCurenta();
+  const teme = [
+    { id:'menta',   nume:'Mentă',   desc:'Verde-teal, prietenos · pentru copil', c:['#4A9B8E','#5BA0C8','#F0F8F6'] },
+    { id:'soare',   nume:'Soare',   desc:'Cald, portocaliu · jucăuș',            c:['#F26A4B','#FF8C61','#FFF6EF'] },
+    { id:'salvie',  nume:'Salvie',  desc:'Verde calm, sobru · pentru părinte',   c:['#2F5D50','#7BA593','#F4F2E9'] },
+    { id:'nocturn', nume:'Nocturn', desc:'Întunecat, mint · doza de seară',      c:['#161C2E','#5BE3C0','#232C46'] },
+  ];
   return `
+    <div class="card">
+      <div class="card-title">🎨 Temă</div>
+      <p class="hint" style="margin-bottom:12px">Alege cum arată aplicația. Se salvează pe telefon.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${teme.map(tm => `
+          <button class="tema-optiune" data-tema-set="${tm.id}"
+            style="display:flex;align-items:center;gap:14px;padding:12px;cursor:pointer;
+              border-radius:14px;background:${tema===tm.id?'var(--teal-light)':'var(--bg)'};
+              border:2px solid ${tema===tm.id?'var(--teal)':'transparent'};text-align:left;width:100%">
+            <span style="display:flex;border-radius:10px;overflow:hidden;flex-shrink:0;
+              box-shadow:0 1px 4px rgba(0,0,0,0.12)">
+              <span style="width:20px;height:40px;background:${tm.c[0]}"></span>
+              <span style="width:20px;height:40px;background:${tm.c[1]}"></span>
+              <span style="width:20px;height:40px;background:${tm.c[2]}"></span>
+            </span>
+            <span style="flex:1">
+              <span style="display:block;font-weight:700;font-size:16px;color:var(--text)">${tm.nume}</span>
+              <span style="display:block;font-size:12.5px;color:var(--text-light)">${tm.desc}</span>
+            </span>
+            ${tema===tm.id
+              ? '<span style="width:24px;height:24px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">✓</span>'
+              : '<span style="width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0"></span>'}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
     ${renderDonatii()}
 
     ${t ? `
@@ -3221,6 +3270,16 @@ function attachSetariEvents() {
     const origNext = onbNext;
   });
 
+  // Temă
+  document.querySelectorAll('[data-tema-set]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      aplicaTema(btn.dataset.temaSet);
+      document.getElementById('scroll-area').innerHTML = renderTab();
+      attachTabEvents();
+      toast('🎨 Temă schimbată!');
+    });
+  });
+
   // Edit protocol
   document.getElementById('btn-edit-protocol')?.addEventListener('click', () => {
     const t = tratamentActiv();
@@ -3497,6 +3556,7 @@ function verificaReminderBackup() {
 // ============================================================
 
 function init() {
+  aplicaTema(temaCurenta());
   loadData();
   restoreTimerState();
 

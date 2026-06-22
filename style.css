@@ -24,6 +24,73 @@
   --nav-height: 68px;
 }
 
+/* ============ TEME ============ */
+
+/* SOARE — cald, portocaliu */
+html[data-tema="soare"] {
+  --teal:       #F26A4B;
+  --teal-dark:  #D8542F;
+  --teal-light: #FFE7DD;
+  --indigo:     #FF8C61;
+  --blue:       #F09B6A;
+  --blue-light: #FFEAD9;
+  --bg:         #FFF6EF;
+  --card:       #FFFFFF;
+  --text:       #3A2A22;
+  --text-light: #9A8A82;
+  --success:    #5BAA7A;
+  --warning:    #E0A840;
+  --danger:     #D85C4A;
+  --border:     #F3E3D8;
+}
+
+/* SALVIE — verde calm, sobru */
+html[data-tema="salvie"] {
+  --teal:       #2F5D50;
+  --teal-dark:  #224236;
+  --teal-light: #E3EADD;
+  --indigo:     #5E8B6E;
+  --blue:       #7BA593;
+  --blue-light: #E0E9DD;
+  --bg:         #F4F2E9;
+  --card:       #FFFFFF;
+  --text:       #2A332A;
+  --text-light: #6E7B6A;
+  --success:    #4C8A63;
+  --warning:    #C99A3E;
+  --danger:     #C0604E;
+  --border:     #E2E1D2;
+}
+
+/* NOCTURN — dark mode, mint */
+html[data-tema="nocturn"] {
+  --teal:       #5BE3C0;
+  --teal-dark:  #38C9A4;
+  --teal-light: #19302E;
+  --indigo:     #6E7AA0;
+  --blue:       #4F8FB0;
+  --blue-light: #1E2A3E;
+  --bg:         #161C2E;
+  --card:       #1E2640;
+  --text:       #E8ECF6;
+  --text-light: #8C97B8;
+  --success:    #2DBE94;
+  --warning:    #E0A840;
+  --danger:     #E0736B;
+  --border:     #2C3656;
+}
+
+/* Corecții pentru tema Nocturn */
+html[data-tema="nocturn"] body { background: #0F1422; }
+html[data-tema="nocturn"] .bottom-nav { background: #11172A; border-top-color: #232C46; }
+html[data-tema="nocturn"] .modal,
+html[data-tema="nocturn"] .close-btn { background: #1E2640; color: var(--text); }
+html[data-tema="nocturn"] .symptom-chip,
+html[data-tema="nocturn"] input,
+html[data-tema="nocturn"] select,
+html[data-tema="nocturn"] textarea { background: #1E2640; border-color: #2C3656; color: var(--text); }
+html[data-tema="nocturn"] .toast { background: #000; }
+
 * {
   box-sizing: border-box;
   margin: 0;
