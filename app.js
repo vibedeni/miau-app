@@ -1,6 +1,6 @@
 // ============================================================
 //  MIAU — Imunoterapie alergii copii
-//  Version 1.0.0
+//  Version 1.10
 //  Vanilla JS, zero dependențe, localStorage
 // ============================================================
 
