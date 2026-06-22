@@ -91,6 +91,85 @@ html[data-tema="nocturn"] select,
 html[data-tema="nocturn"] textarea { background: #1E2640; border-color: #2C3656; color: var(--text); }
 html[data-tema="nocturn"] .toast { background: #000; }
 
+/* ============ SALVIE — editorial ============ */
+
+html[data-tema="salvie"] .card {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  border-top: 2px solid var(--teal);
+  border-radius: 0;
+  padding: 16px 4px;
+}
+html[data-tema="salvie"] .card-pink,
+html[data-tema="salvie"] .card-blue { border-top-color: var(--teal); }
+
+html[data-tema="salvie"] .card-title {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-light);
+}
+
+html[data-tema="salvie"] .protocol-today { text-align: left; }
+html[data-tema="salvie"] .protocol-dose {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 54px;
+  font-weight: 500;
+  color: var(--teal);
+  line-height: 1.05;
+}
+html[data-tema="salvie"] .protocol-dose span {
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 20px;
+}
+html[data-tema="salvie"] .protocol-phase {
+  background: transparent;
+  padding: 0;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+html[data-tema="salvie"] .step-item {
+  background: transparent !important;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+html[data-tema="salvie"] .step-number {
+  background: transparent !important;
+  color: var(--text-light) !important;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 18px;
+  width: 26px;
+  height: 26px;
+}
+html[data-tema="salvie"] .step-number.active {
+  border: 2px solid var(--teal);
+  color: var(--teal) !important;
+}
+html[data-tema="salvie"] .step-number.done { color: var(--success) !important; }
+
+/* ============ NOCTURN — inel-cronometru ============ */
+html[data-tema="nocturn"] .timer-circle {
+  border: none;
+  background: conic-gradient(var(--teal) calc(var(--prog, 1) * 360deg), #2C3656 0deg);
+  box-shadow: 0 0 24px rgba(91,227,192,0.3);
+  position: relative;
+}
+html[data-tema="nocturn"] .timer-circle::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+html[data-tema="nocturn"] .timer-time { position: relative; z-index: 1; color: #fff; }
+html[data-tema="nocturn"] .timer-circle.running { animation: none; }
+html[data-tema="nocturn"] .timer-circle.done {
+  background: var(--teal);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

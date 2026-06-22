@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.17';
+const APP_VERSION = '1.18';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -340,6 +340,7 @@ function confirmDialog(mesaj, onConfirm, { danger = false, textConfirma = 'Confi
 function startTimer(id, minutes, onDone) {
   if (S.timers[id]) clearInterval(S.timers[id].interval);
   const endTs = Date.now() + minutes * 60 * 1000;
+  const durataPasMs = minutes * 60 * 1000;
 
   // Stochează callback-ul pentru Skip
   S.timers[id] = { endTs, interval: null, onDone };
@@ -348,11 +349,22 @@ function startTimer(id, minutes, onDone) {
     const remaining = endTs - Date.now();
     const el = document.getElementById('timer-display');
     if (el) el.textContent = formatMMSS(remaining);
+
+    // Inelul Nocturn — fracțiunea de timp rămasă (1 = plin, 0 = gol)
+    const circle = document.getElementById('timer-circle');
+    if (circle) {
+      const frac = Math.max(0, Math.min(1, remaining / durataPasMs));
+      circle.style.setProperty('--prog', frac.toFixed(3));
+    }
+
     if (remaining <= 0) {
       clearInterval(interval);
-      const circle = document.getElementById('timer-circle');
       if (el) el.textContent = '00:00';
-      if (circle) { circle.classList.remove('running'); circle.classList.add('done'); }
+      if (circle) {
+        circle.classList.remove('running');
+        circle.classList.add('done');
+        circle.style.setProperty('--prog', '0');
+      }
       delete S.timers[id];
       if (onDone) onDone();
     }
