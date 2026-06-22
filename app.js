@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.9';
+const APP_VERSION = '1.10';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -324,10 +324,11 @@ function releaseWakeLock() {
   }
 }
 
-// Reactivează Wake Lock dacă ecranul a revenit (iOS/Android eliberează la minimize)
+// Reactivează Wake Lock și AudioContext dacă ecranul a revenit
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && Object.keys(S.timers).length > 0) {
     requestWakeLock();
+    if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
     // Recalculează timere — dacă ecranul a fost stins, actualizăm afișajul
     for (const [id, t] of Object.entries(S.timers)) {
       const remaining = t.endTs - Date.now();
@@ -574,8 +575,6 @@ function renderAcasa() {
         ${renderLinkuri(t)}
       </div>
     </div>
-
-    ${renderDonatii()}
 
     ${!tratatAzi && pas ? `
       ${new Date().getHours() >= 20 ? `
@@ -1355,8 +1354,8 @@ function renderSetari() {
         })() : `
           <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
             Permite trimiterea unui raport zilnic pe email după fiecare tratament. Gratuit, fără server.<br><br>
-            Dacă nu te descurci cu configurarea, trimite-ne un email și te ajutăm pas cu pas:
-            <a href="mailto:vibedevd@gmail.com" style="color:var(--pink-dark);font-weight:600">vibedevd@gmail.com</a>
+            Dacă nu te descurci cu configurarea, găsești ghidul complet pas cu pas pe site-ul nostru:
+            <a href="https://miauapp.ro/ghid-emailjs" target="_blank" style="color:var(--pink-dark);font-weight:600">miauapp.ro/ghid-emailjs</a>
           </p>
           <div class="form-group">
             <label>Service ID</label>
