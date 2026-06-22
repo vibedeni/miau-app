@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.16';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -144,7 +144,7 @@ function loadData() {
 function curataIstoricVechi() {
   if (!S.data?.tratamente) return;
   const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  cutoff.setFullYear(cutoff.getFullYear() - 3);
   const limita = cutoff.toISOString().slice(0, 10); // 'YYYY-MM-DD'
   let modificat = false;
   S.data.tratamente.forEach(t => {
@@ -296,6 +296,26 @@ function showOverlay(html) {
 
 function closeOverlay() {
   document.getElementById('overlay')?.remove();
+}
+
+function confirmDialog(mesaj, onConfirm, { danger = false, textConfirma = 'Confirmă' } = {}) {
+  const div = document.createElement('div');
+  div.className = 'overlay';
+  div.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">${danger ? '⚠️ Confirmare' : 'Confirmă acțiunea'}</div>
+      <p style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:16px;white-space:pre-line">${mesaj}</p>
+      <div class="btn-row">
+        <button class="btn btn-outline" id="confirm-dialog-cancel">Anulează</button>
+        <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-dialog-ok">${textConfirma}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(div);
+  const inchide = () => div.remove();
+  div.addEventListener('click', e => { if (e.target === div) inchide(); });
+  div.querySelector('#confirm-dialog-cancel').addEventListener('click', inchide);
+  div.querySelector('#confirm-dialog-ok').addEventListener('click', () => { inchide(); onConfirm(); });
 }
 
 // ============================================================
@@ -528,6 +548,13 @@ function esteZiTransitieFlacon(t) {
   return areInitiere;
 }
 
+function trebuieBannerInstalare() {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone) return false;
+  if (S.data.bannerInstalareAscunsLa === 'pentru-totdeauna') return false;
+  return true;
+}
+
 function renderAcasa() {
   const t = tratamentActiv();
   if (!t) return `<div class="empty-state"><div class="empty-icon">😿</div><p>Niciun tratament activ.</p></div>`;
@@ -540,6 +567,19 @@ function renderAcasa() {
   const zileRamase = pas ? zileRamasePas(t, ziua) : null;
 
   return `
+    ${trebuieBannerInstalare() ? `
+    <div class="card" style="border:2px solid var(--warning);background:#FFF8EC">
+      <div style="font-size:14px;font-weight:700;color:#7A5500;margin-bottom:6px">📲 Adaugă Miau pe ecranul principal</div>
+      <div style="font-size:13px;color:#7A5500;line-height:1.5;margin-bottom:10px">
+        Pe iPhone, datele se pot șterge automat dacă aplicația rămâne doar în browser și nu e folosită o vreme.
+        Adaugă-o pe ecranul principal ca să fie sigură.
+      </div>
+      <div style="display:flex;gap:8px">
+        <a href="ghid-instalare.html" target="_blank" class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none">Vezi cum</a>
+        <button class="btn btn-outline" id="btn-ascunde-banner-instalare">Am făcut-o</button>
+      </div>
+    </div>
+    ` : ''}
     ${tranzitie ? `
     <div style="background:linear-gradient(135deg,#EEF4FF,#E0EAFF);border:2px solid #5B9BD5;
       border-radius:14px;padding:16px;margin-bottom:12px">
@@ -765,7 +805,7 @@ function renderSimptome() {
         <label style="font-size:13px;font-weight:600;color:var(--text-light);text-transform:uppercase;
           letter-spacing:0.3px;white-space:nowrap">Data:</label>
         <input type="date" id="sim-data" value="${dataSelectata}" max="${today()}"
-          style="flex:1;padding:8px 12px;border:2px solid ${esteAzi ? 'var(--pink)' : 'var(--warning)'};
+          style="flex:1;padding:8px 12px;border:2px solid ${esteAzi ? 'var(--teal)' : 'var(--warning)'};
             border-radius:8px;font-size:14px;font-weight:600">
         ${!esteAzi ? `<span style="font-size:12px;color:var(--warning);font-weight:600">zi trecută</span>` : ''}
       </div>
@@ -802,14 +842,14 @@ function renderSimptome() {
           const sel = simptomeZi.find(x => x.id === s.id);
           return `
             <div class="symptom-row" data-id="${s.id}"
-              style="padding:12px;border:2px solid ${sel ? 'var(--pink)' : '#DDF0ED'};border-radius:10px;
-                     background:${sel ? 'var(--pink-light)' : 'white'};cursor:pointer;transition:all 0.15s">
+              style="padding:12px;border:2px solid ${sel ? 'var(--teal)' : '#DDF0ED'};border-radius:10px;
+                     background:${sel ? 'var(--teal-light)' : 'white'};cursor:pointer;transition:all 0.15s">
               <div style="display:flex;align-items:center;gap:10px;pointer-events:none">
                 <span style="font-size:20px">${s.label.split(' ')[0]}</span>
                 <span style="font-size:14px;flex:1;font-weight:${sel ? '600' : '400'}">
                   ${s.label.split(' ').slice(1).join(' ')}
                 </span>
-                <span style="font-size:18px;color:${sel ? 'var(--pink)' : '#CCC'}">${sel ? '✓' : '○'}</span>
+                <span style="font-size:18px;color:${sel ? 'var(--teal)' : '#CCC'}">${sel ? '✓' : '○'}</span>
               </div>
               ${sel ? `
                 <div class="severity-row" style="margin-top:10px" onclick="event.stopPropagation()">
@@ -1280,7 +1320,7 @@ function renderSetari() {
             ) : `
               <div style="text-align:center;padding:8px;margin-bottom:6px">
                 <button class="btn btn-outline btn-small" id="btn-edit-anti"
-                  style="width:auto;padding:8px 16px;font-size:13px;color:var(--pink-dark)">
+                  style="width:auto;padding:8px 16px;font-size:13px;color:var(--teal-dark)">
                   + Adaugă antihistaminic
                 </button>
               </div>
@@ -1346,7 +1386,7 @@ function renderSetari() {
           <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer">
             <input type="checkbox" id="toggle-email" ${t.emailActiv ? 'checked' : ''}
               style="opacity:0;width:0;height:0;position:absolute">
-            <span id="toggle-email-track" style="position:absolute;inset:0;background:${t.emailActiv ? 'var(--pink)' : '#CCC'};
+            <span id="toggle-email-track" style="position:absolute;inset:0;background:${t.emailActiv ? 'var(--teal)' : '#CCC'};
               border-radius:13px;transition:0.2s"></span>
             <span style="position:absolute;left:${t.emailActiv ? '24px' : '2px'};top:2px;width:22px;height:22px;
               background:white;border-radius:50%;transition:0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"
@@ -1386,7 +1426,7 @@ function renderSetari() {
           <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
             Permite trimiterea unui raport zilnic pe email după fiecare tratament. Gratuit, fără server.<br><br>
             Dacă nu te descurci cu configurarea, găsești ghidul complet pas cu pas pe site-ul nostru:
-            <a href="https://miauapp.ro/ghid-emailjs" target="_blank" style="color:var(--pink-dark);font-weight:600">miauapp.ro/ghid-emailjs</a>
+            <a href="https://miauapp.ro/ghid-emailjs" target="_blank" style="color:var(--teal-dark);font-weight:600">miauapp.ro/ghid-emailjs</a>
           </p>
           <div class="form-group">
             <label>Service ID</label>
@@ -1680,9 +1720,9 @@ function renderProtocolRow(p, i) {
       ` : `
         <!-- Date calendaristice -->
         <div style="display:flex;gap:4px;align-items:center;width:100%">
-          <input type="date" class="pr-data-start" value="${p.dataStart || today()}" style="flex:1;font-size:13px;padding:6px">
+          <input type="date" class="pr-data-start" value="${p.dataStart || today()}" style="flex:1;font-size:16px;padding:6px">
           <span class="sep">→</span>
-          <input type="date" class="pr-data-end" value="${p.dataEnd || ''}" style="flex:1;font-size:13px;padding:6px">
+          <input type="date" class="pr-data-end" value="${p.dataEnd || ''}" style="flex:1;font-size:16px;padding:6px">
         </div>
       `}
 
@@ -2013,12 +2053,12 @@ function showEditSimptomeZi(data) {
           const sel = intrare.simptome?.find(x => x.id === s.id);
           return `
             <div class="modal-sym-row" data-id="${s.id}"
-              style="padding:10px 12px;border:2px solid ${sel ? 'var(--pink)' : '#DDF0ED'};
-                border-radius:10px;background:${sel ? 'var(--pink-light)' : 'white'};cursor:pointer">
+              style="padding:10px 12px;border:2px solid ${sel ? 'var(--teal)' : '#DDF0ED'};
+                border-radius:10px;background:${sel ? 'var(--teal-light)' : 'white'};cursor:pointer">
               <div style="display:flex;align-items:center;gap:10px;pointer-events:none">
                 <span style="font-size:18px">${s.label.split(' ')[0]}</span>
                 <span style="font-size:14px;flex:1">${s.label.split(' ').slice(1).join(' ')}</span>
-                <span style="font-size:16px;color:${sel ? 'var(--pink)' : '#CCC'}">${sel ? '✓' : '○'}</span>
+                <span style="font-size:16px;color:${sel ? 'var(--teal)' : '#CCC'}">${sel ? '✓' : '○'}</span>
               </div>
               ${sel ? `
                 <div class="severity-row" style="margin-top:8px" onclick="event.stopPropagation()">
@@ -2064,8 +2104,8 @@ function showEditSimptomeZi(data) {
         row.querySelectorAll('.severity-row').forEach(r => r.remove());
       } else {
         simSelectate[id] = 'usor';
-        row.style.border = '2px solid var(--pink)';
-        row.style.background = 'var(--pink-light)';
+        row.style.border = '2px solid var(--teal)';
+        row.style.background = 'var(--teal-light)';
         const sevRow = document.createElement('div');
         sevRow.className = 'severity-row';
         sevRow.style.marginTop = '8px';
@@ -2117,27 +2157,27 @@ function showEditSimptomeZi(data) {
     const msg = wasFinalizat
       ? `Ștergi intrarea din ${formatDate(data)}?\n\nTratamentul era marcat ca finalizat — stocurile se vor reface automat (${intrare.picaturi} picături Staloral${t.antihistaminic.activ ? ' + 1 antihistaminic' : ''}).`
       : `Ștergi intrarea din ${formatDate(data)}?`;
-    if (!confirm(msg)) return;
-
-    // Reface stocurile dacă era finalizat
-    if (wasFinalizat) {
-      t.staloral.flaconCurent = Math.min(50, t.staloral.flaconCurent + (intrare.picaturi || 0));
-      if (t.antihistaminic.activ && intrare.finalizat) {
-        t.antihistaminic.stoc += 1;
+    confirmDialog(msg, () => {
+      // Reface stocurile dacă era finalizat
+      if (wasFinalizat) {
+        t.staloral.flaconCurent = Math.min(50, t.staloral.flaconCurent + (intrare.picaturi || 0));
+        if (t.antihistaminic.activ && intrare.finalizat) {
+          t.antihistaminic.stoc += 1;
+        }
       }
-    }
 
-    t.istoric = t.istoric.filter(e => e.data !== data);
-    saveData();
-    closeOverlay();
-    if (data === today()) {
-      stopAllTimers();
-      S.timerStepIdx = null;
-      S.timerDone = false;
-    }
-    document.getElementById('scroll-area').innerHTML = renderTab();
-    attachTabEvents();
-    toast(wasFinalizat ? '🗑️ Intrare ștearsă + stocuri refăcute.' : '🗑️ Intrare ștearsă.');
+      t.istoric = t.istoric.filter(e => e.data !== data);
+      saveData();
+      closeOverlay();
+      if (data === today()) {
+        stopAllTimers();
+        S.timerStepIdx = null;
+        S.timerDone = false;
+      }
+      document.getElementById('scroll-area').innerHTML = renderTab();
+      attachTabEvents();
+      toast(wasFinalizat ? '🗑️ Intrare ștearsă + stocuri refăcute.' : '🗑️ Intrare ștearsă.');
+    }, { danger: true, textConfirma: 'Șterge' });
   });
 }
 
@@ -2195,6 +2235,14 @@ function attachAcasaEvents() {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = formatMMSS(endTs - Date.now());
   }
+
+  // ── Banner instalare pe ecranul principal ──
+  document.getElementById('btn-ascunde-banner-instalare')?.addEventListener('click', () => {
+    S.data.bannerInstalareAscunsLa = 'pentru-totdeauna';
+    saveData();
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+  });
 
   // ── Confirmare tranziție la flaconul albastru ──
   document.getElementById('btn-confirma-tranzitie')?.addEventListener('click', () => {
@@ -2495,7 +2543,7 @@ function showEditAntihistaminic(t) {
         <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer">
           <input type="checkbox" id="anti-activ" ${a.activ ? 'checked' : ''}
             style="opacity:0;width:0;height:0;position:absolute">
-          <span id="anti-activ-track" style="position:absolute;inset:0;background:${a.activ ? 'var(--pink)' : '#CCC'};
+          <span id="anti-activ-track" style="position:absolute;inset:0;background:${a.activ ? 'var(--teal)' : '#CCC'};
             border-radius:13px;transition:0.2s"></span>
           <span id="anti-activ-thumb" style="position:absolute;left:${a.activ ? '24px' : '2px'};top:2px;
             width:22px;height:22px;background:white;border-radius:50%;transition:0.2s;
@@ -2545,7 +2593,7 @@ function showEditAntihistaminic(t) {
   // Toggle activ
   document.getElementById('anti-activ').addEventListener('change', e => {
     tmpActiv = e.target.checked;
-    document.getElementById('anti-activ-track').style.background = tmpActiv ? 'var(--pink)' : '#CCC';
+    document.getElementById('anti-activ-track').style.background = tmpActiv ? 'var(--teal)' : '#CCC';
     document.getElementById('anti-activ-thumb').style.left = tmpActiv ? '24px' : '2px';
   });
   // Tip toggle
@@ -2829,8 +2877,8 @@ function attachSimptomeEvents() {
         row.querySelector('span:nth-child(2), div > span:last-child') && (row.querySelector('div > span:last-child').style.fontWeight = '400');
       } else {
         simptomeSelectate[id] = 'usor';
-        row.style.border = '2px solid var(--pink)';
-        row.style.background = 'var(--pink-light)';
+        row.style.border = '2px solid var(--teal)';
+        row.style.background = 'var(--teal-light)';
         row.classList.add('selected');
         // Adaugă severitate
         const sevRow = document.createElement('div');
@@ -3078,13 +3126,13 @@ function attachSetariEvents() {
     btn.addEventListener('click', () => {
       const t = tratamentActiv(); if (!t) return;
       const p = t.pasiExtra[+btn.dataset.delExtra];
-      if (confirm(`Ștergi pasul „${p?.label || ''}"? Acțiunea este ireversibilă.`)) {
+      confirmDialog(`Ștergi pasul „${p?.label || ''}"? Acțiunea este ireversibilă.`, () => {
         t.pasiExtra.splice(+btn.dataset.delExtra, 1);
         saveData();
         document.getElementById('scroll-area').innerHTML = renderTab();
         attachTabEvents();
         toast('Pas șters.');
-      }
+      }, { danger: true, textConfirma: 'Șterge' });
     });
   });
 
@@ -3101,7 +3149,7 @@ function attachSetariEvents() {
     t.emailActiv = e.target.checked;
     const track = document.getElementById('toggle-email-track');
     const thumb = document.getElementById('toggle-email-thumb');
-    if (track) track.style.background = t.emailActiv ? 'var(--pink)' : '#CCC';
+    if (track) track.style.background = t.emailActiv ? 'var(--teal)' : '#CCC';
     if (thumb) thumb.style.left = t.emailActiv ? '24px' : '2px';
     saveData();
     toast(t.emailActiv ? '📧 Email activat' : '🔕 Email dezactivat');
@@ -3198,7 +3246,7 @@ function attachSetariEvents() {
     if (!t) return;
     const val = document.getElementById('input-link-staloral')?.value.trim() || '';
     t.linkStaloral = val;
-    salveaza();
+    saveData();
     render();
     toast('Link Staloral salvat!');
   });
@@ -3206,7 +3254,7 @@ function attachSetariEvents() {
     const t = tratamentActiv();
     if (!t) return;
     t.linkStaloral = '';
-    salveaza();
+    saveData();
     render();
     toast('Link resetat la default (pisică).');
   });
@@ -3239,12 +3287,12 @@ function attachSetariEvents() {
           e.target.value = '';
           return;
         }
-        if (confirm(`Importă ${data.tratamente.length} tratament(e)? Datele existente vor fi înlocuite.`)) {
+        confirmDialog(`Importă ${data.tratamente.length} tratament(e)? Datele existente vor fi înlocuite.`, () => {
           S.data = data;
           saveData();
           render();
           toast('✅ Date importate cu succes!');
-        }
+        }, { danger: true, textConfirma: 'Importă' });
       } catch {
         toast('❌ Fișier invalid — nu este un JSON corect.');
       }
@@ -3255,8 +3303,8 @@ function attachSetariEvents() {
 
   // Reset
   document.getElementById('btn-reset')?.addEventListener('click', () => {
-    if (confirm('Ești sigur? Toate datele vor fi șterse definitiv!')) {
-      if (confirm('Ultima confirmare — chiar ștergi tot?')) {
+    confirmDialog('Ești sigur? Toate datele vor fi șterse definitiv!', () => {
+      confirmDialog('Ultima confirmare — chiar ștergi tot?', () => {
         localStorage.removeItem(STORAGE_KEY);
         S.data = defaultData();
         S.onb = { step: 1, d: {} };
@@ -3265,8 +3313,8 @@ function attachSetariEvents() {
         stopAllTimers();
         render();
         toast('Toate datele au fost șterse.');
-      }
-    }
+      }, { danger: true, textConfirma: 'Șterge tot' });
+    }, { danger: true, textConfirma: 'Continuă' });
   });
 }
 
@@ -3366,6 +3414,8 @@ function exportJSON(filtruId = null) {
   a.download = numeFisier;
   a.click();
   URL.revokeObjectURL(url);
+  S.data.lastBackup = today();
+  saveData();
   toast('📤 Export realizat!');
 }
 
@@ -3429,21 +3479,17 @@ function trimiteEmail(t) {
   } catch {}
 }
 
-// ============================================================
-//  TRATAMENT NOU (din setări, fără a pierde celelalte)
-// ============================================================
-
-// Patch pentru onboarding-ul din setări — re-adaugă la lista existentă
-const _origOnbNext = onbNext;
-function startTratamentNouDinSetari() {
-  S.onb = { step: 1, d: {}, mode: 'adauga' };
-  const app = document.getElementById('app');
-  app.innerHTML = renderOnboarding();
-  attachOnboardingEvents();
-
-  // Override buton next la pasul 7
-  const nextBtn = document.getElementById('onb-next');
-  // Se face în onbNext care verifică mode
+function verificaReminderBackup() {
+  if (!S.data?.tratamente?.length) return;
+  const ultim = S.data.lastBackup;
+  if (!ultim) {
+    setTimeout(() => toast('💾 Nu ai făcut niciun backup încă. Setări → Export JSON, ca să nu pierzi datele.', 6000), 2000);
+    return;
+  }
+  const zile = Math.floor((new Date(today()) - new Date(ultim)) / 86400000);
+  if (zile >= 30) {
+    setTimeout(() => toast(`💾 Au trecut ${zile} zile de la ultimul backup — exportă datele din Setări.`, 6000), 2000);
+  }
 }
 
 // ============================================================
@@ -3464,6 +3510,7 @@ function init() {
   }
 
   render();
+  verificaReminderBackup();
 
   // Dacă timer-ul era activ și app-ul s-a reîncărcat pe alt tab, întoarce-l pe Acasă
   if (S._restoreEndTs) {
