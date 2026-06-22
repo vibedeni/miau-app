@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.13';
+const APP_VERSION = '1.14';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
