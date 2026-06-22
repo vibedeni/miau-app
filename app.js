@@ -689,9 +689,6 @@ function renderLinkuri(t) {
         <span>Caută Staloral — Farmacia Tei</span>
         <span class="link-arrow">↗</span>
       </a>
-      <button id="btn-edit-link-staloral" title="Schimbă linkul"
-        style="flex-shrink:0;background:none;border:1.5px solid var(--border);border-radius:8px;
-          padding:8px 10px;font-size:14px;cursor:pointer;color:var(--text-light)">✏️</button>
     </div>
     <a href="${LINK_MEDRADAR}" target="_blank" class="link-btn">
       <span class="link-icon">💊</span>
