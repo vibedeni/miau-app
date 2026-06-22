@@ -3302,23 +3302,17 @@ function showEditProtocol(t) {
   });
 
   document.getElementById('ep-save').addEventListener('click', () => {
-    t.protocol = protocol;
-    saveData();
-    closeOverlay();
-    document.getElementById('scroll-area').innerHTML = renderTab();
-    attachTabEvents();
-    toast('✅ Protocol actualizat!');
-  });
-}
-endar') {
-          protocol[i].dataStart = row.querySelector('.pr-data-start')?.value || protocol[i].dataStart;
-          protocol[i].dataEnd   = row.querySelector('.pr-data-end')?.value || protocol[i].dataEnd;
-        } else {
-          protocol[i].zile = +(row.querySelector('.pr-zile')?.value || 1);
-        }
-        protocol[i].picaturi = +(row.querySelector('.pr-pic')?.value || 1);
-        protocol[i].unitati  = +(row.querySelector('.pr-u')?.value || 10);
+    protocol.forEach((_, i) => {
+      const row = document.querySelector(`[data-row-idx="${i}"]`);
+      if (!row) return;
+      if (protocol[i].tipData === 'calendar') {
+        protocol[i].dataStart = row.querySelector('.pr-data-start')?.value || protocol[i].dataStart;
+        protocol[i].dataEnd   = row.querySelector('.pr-data-end')?.value || protocol[i].dataEnd;
+      } else {
+        protocol[i].zile = +(row.querySelector('.pr-zile')?.value || 1);
       }
+      protocol[i].picaturi = +(row.querySelector('.pr-pic')?.value || 1);
+      protocol[i].unitati  = +(row.querySelector('.pr-u')?.value || 10);
     });
     const pauze = detecteazaPauzeProtocol(protocol);
     if (pauze > 0) {
