@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.14';
+const APP_VERSION = '1.15';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -1274,7 +1274,7 @@ function renderSetari() {
             <!-- Antihistaminic -->
             ${anti.activ ? rowItem(
               anti.tip === 'pastile' ? '💊' : '💧',
-              `${anti.tip === 'pastile' ? 'Pastilă' : 'Antihistaminic'} ${anti.nume}`,
+              `Antihistaminic ${anti.nume}`,
               `${anti.minute} min ${anti.pozitie === 'inainte' ? 'înainte de' : 'după'} Staloral · stoc: ${anti.stoc}`,
               `<button class="btn btn-outline btn-small" id="btn-edit-anti" style="width:auto;padding:6px 10px;font-size:12px">✏️</button>`
             ) : `
@@ -1622,7 +1622,7 @@ function renderOnboardingStep(step, d) {
         <div class="form-group">
           <label>Tip</label>
           <div class="toggle-group">
-            <button class="toggle-btn ${(!d.antiTip || d.antiTip === 'pastile') ? 'selected' : ''}" data-antitip="pastile">💊 Pastile</button>
+            <button class="toggle-btn ${(!d.antiTip || d.antiTip === 'pastile') ? 'selected' : ''}" data-antitip="pastile">💊 Antihistaminic</button>
             <button class="toggle-btn ${d.antiTip === 'picaturi' ? 'selected' : ''}" data-antitip="picaturi">💧 Picături</button>
           </div>
         </div>
@@ -2363,7 +2363,7 @@ function buildPasi(t) {
   // ① Pași înainte de Staloral
   if (anti.activ && anti.pozitie === 'inainte')
     pasi.push({ id: 'anti', minute: anti.minute,
-      label: `💊 ${anti.tip === 'pastile' ? 'Pastilă' : 'Antihistaminic'} ${anti.nume}`,
+      label: `💊 Antihistaminic ${anti.nume}`,
       sub: `Aștepți ${anti.minute} min înainte de Staloral` });
   extras.filter(p => p.pozitie === 'inainte').forEach((p, i) =>
     pasi.push({ id: `extra_pre_${i}`, minute: p.minute, label: p.label, sub: p.sub || '' }));
@@ -2379,7 +2379,7 @@ function buildPasi(t) {
   // ③ Pași după așteptare
   if (anti.activ && anti.pozitie === 'dupa')
     pasi.push({ id: 'anti', minute: anti.minute,
-      label: `💊 ${anti.tip === 'pastile' ? 'Pastilă' : 'Antihistaminic'} ${anti.nume}`,
+      label: `💊 Antihistaminic ${anti.nume}`,
       sub: `Aștepți ${anti.minute} min după Staloral` });
   extras.filter(p => !p.pozitie || p.pozitie === 'dupa').forEach((p, i) =>
     pasi.push({ id: `extra_post_${i}`, minute: p.minute, label: p.label, sub: p.sub || '' }));
@@ -2516,7 +2516,7 @@ function showEditAntihistaminic(t) {
       <div class="form-group">
         <label>Tip</label>
         <div class="toggle-group" id="anti-tip-group">
-          <button class="toggle-btn ${tmpTip === 'pastile' ? 'selected' : ''}" data-antitip2="pastile">💊 Pastile</button>
+          <button class="toggle-btn ${tmpTip === 'pastile' ? 'selected' : ''}" data-antitip2="pastile">💊 Antihistaminic</button>
           <button class="toggle-btn ${tmpTip === 'picaturi' ? 'selected' : ''}" data-antitip2="picaturi">💧 Picături</button>
         </div>
       </div>
