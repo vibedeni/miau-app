@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.11';
+const APP_VERSION = '1.13';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -36,7 +36,9 @@ const SEVERITATE = [
 
 const LINK_STALORAL_DEFAULT = 'https://comenzi.farmaciatei.ro/cauti/staloral+pisica?product_category=1';
 const LINK_MEDRADAR  = 'https://www.medradar.ro/';
-const LINK_PROSPECT  = 'https://anmdm.ro/medicamente/cautare-prospect?q=staloral';
+const LINK_PROSPECT  = 'https://www.anm.ro/_/_PRO/PRO_10664_15.03.18.pdf';
+const LINK_SITE      = 'https://miauapp.ro';
+const LINK_GHID      = 'https://miauapp.ro/ghid-instalare.html';
 const LINK_DONATIE   = 'https://revolut.me/denisalvcr';
 
 // ============================================================
@@ -136,6 +138,22 @@ function loadData() {
   } catch {
     S.data = defaultData();
   }
+  curataIstoricVechi();
+}
+
+function curataIstoricVechi() {
+  if (!S.data?.tratamente) return;
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const limita = cutoff.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  let modificat = false;
+  S.data.tratamente.forEach(t => {
+    if (!t.istoric) return;
+    const inainte = t.istoric.length;
+    t.istoric = t.istoric.filter(e => e.data >= limita);
+    if (t.istoric.length !== inainte) modificat = true;
+  });
+  if (modificat) saveData();
 }
 
 function saveData() {
@@ -267,6 +285,11 @@ function showOverlay(html) {
   div.innerHTML = html;
   div.addEventListener('click', e => {
     if (e.target === div) closeOverlay();
+    const btn = e.target.closest('button');
+    if (btn && (btn.classList.contains('close-btn') || btn.getAttribute('onclick')?.includes('closeOverlay'))) {
+      e.stopPropagation();
+      closeOverlay();
+    }
   });
   document.body.appendChild(div);
 }
@@ -537,7 +560,7 @@ function renderAcasa() {
 
     <!-- Card protocol azi -->
     <div class="card card-pink">
-      <div class="card-title">Tratamentul de azi</div>
+      <div class="card-title">Tratamentul de azi — ${formatDate(today())}</div>
       <div class="protocol-today">
         <div class="protocol-day">Ziua ${ziua} din tratament</div>
         ${pas ? `
@@ -561,6 +584,13 @@ function renderAcasa() {
       </div>
     </div>
 
+    ${!tratatAzi && pas && new Date().getHours() >= 20 ? `
+      <div style="background:#FFF0DC;border:1px solid #FFD060;border-radius:10px;
+        padding:10px 14px;margin-bottom:8px;font-size:13px;color:#7A5500;text-align:center">
+        🌙 E târziu — nu uita de tratament!
+      </div>
+    ` : ''}
+
     ${tratatAzi ? renderTimereInactive(t) : renderTimere(t)}
 
     <!-- Hint protocol -->
@@ -577,12 +607,6 @@ function renderAcasa() {
     </div>
 
     ${!tratatAzi && pas ? `
-      ${new Date().getHours() >= 20 ? `
-        <div style="background:#FFF0DC;border:1px solid #FFD060;border-radius:10px;
-          padding:10px 14px;margin-bottom:8px;font-size:13px;color:#7A5500;text-align:center">
-          🌙 E târziu — nu uita de tratament!
-        </div>
-      ` : ''}
       <button class="btn btn-outline" id="btn-sari">Sărit azi (nu s-a putut face tratamentul)</button>
     ` : ''}
 
@@ -697,7 +721,17 @@ function renderLinkuri(t) {
     </a>
     <a href="${LINK_PROSPECT}" target="_blank" class="link-btn">
       <span class="link-icon">📄</span>
-      <span>Prospect oficial ANMDM</span>
+      <span>Prospect oficial Staloral (PDF)</span>
+      <span class="link-arrow">↗</span>
+    </a>
+    <a href="${LINK_SITE}" target="_blank" class="link-btn">
+      <span class="link-icon">🌐</span>
+      <span>miauapp.ro — site aplicație</span>
+      <span class="link-arrow">↗</span>
+    </a>
+    <a href="${LINK_GHID}" target="_blank" class="link-btn">
+      <span class="link-icon">📱</span>
+      <span>Ghid instalare pe telefon</span>
       <span class="link-arrow">↗</span>
     </a>
   `;
@@ -1240,7 +1274,7 @@ function renderSetari() {
             <!-- Antihistaminic -->
             ${anti.activ ? rowItem(
               anti.tip === 'pastile' ? '💊' : '💧',
-              `${anti.tip === 'pastile' ? 'Pastilă' : 'Picături'} ${anti.nume}`,
+              `${anti.tip === 'pastile' ? 'Pastilă' : 'Antihistaminic'} ${anti.nume}`,
               `${anti.minute} min ${anti.pozitie === 'inainte' ? 'înainte de' : 'după'} Staloral · stoc: ${anti.stoc}`,
               `<button class="btn btn-outline btn-small" id="btn-edit-anti" style="width:auto;padding:6px 10px;font-size:12px">✏️</button>`
             ) : `
@@ -1403,7 +1437,7 @@ function renderSetari() {
       </p>
       <label style="font-size:13px;color:var(--text-light);display:block;margin-bottom:4px">Link personalizat (lasă gol pentru default pisică)</label>
       <input type="url" id="input-link-staloral"
-        placeholder="https://comenzi.farmaciatei.ro/cauti/staloral+..."
+        placeholder="Lipește linkul aici..."
         value="${t.linkStaloral || ''}"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px">
       <div style="display:flex;gap:8px">
@@ -1653,9 +1687,12 @@ function renderProtocolRow(p, i) {
       `}
 
       <span class="sep">×</span>
-      <input type="number" class="pr-pic" value="${p.picaturi || 1}" min="1" placeholder="pic." style="width:50px;text-align:center">
+      <input type="number" class="pr-pic" value="${p.picaturi || 1}" min="1" max="10" placeholder="pic." style="width:50px;text-align:center">
       <span class="sep">pic. ×</span>
-      <input type="number" class="pr-u" value="${p.unitati || 10}" min="1" placeholder="unit." style="width:60px;text-align:center">
+      <select class="pr-u" style="width:70px;text-align:center;padding:4px 2px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+        <option value="10" ${(p.unitati || 10) === 10 ? 'selected' : ''}>10u</option>
+        <option value="100" ${p.unitati === 100 ? 'selected' : ''}>100u</option>
+      </select>
       <span class="sep">u</span>
       <button class="del-btn" data-del="${i}">✕</button>
     </div>
@@ -1742,6 +1779,22 @@ function attachOnboardingStepEvents() {
   document.getElementById('onb-anti-nume')?.addEventListener('input', e => d.antiNume = e.target.value.trim());
   document.getElementById('onb-anti-stoc')?.addEventListener('change', e => d.antiStoc = +e.target.value);
   document.getElementById('onb-anti-min')?.addEventListener('change', e => d.antiMinute = +e.target.value);
+}
+
+function detecteazaPauzeProtocol(protocol) {
+  const calendarare = protocol
+    .filter(p => p.tipData === 'calendar' && p.dataStart && p.dataEnd)
+    .sort((a, b) => a.dataStart.localeCompare(b.dataStart));
+  for (let i = 1; i < calendarare.length; i++) {
+    const prev = calendarare[i - 1];
+    const curr = calendarare[i];
+    const endPrev = new Date(prev.dataEnd);
+    const startCurr = new Date(curr.dataStart);
+    endPrev.setHours(0,0,0,0); startCurr.setHours(0,0,0,0);
+    const diff = Math.floor((startCurr - endPrev) / 86400000);
+    if (diff > 1) return diff - 1; // nr zile de pauză
+  }
+  return 0;
 }
 
 function attachProtocolRowEvents(containerId = 'protocol-rows', protocol = null) {
@@ -2237,8 +2290,24 @@ function attachAcasaEvents() {
       document.getElementById('modal-sarit-fara-anti')?.addEventListener('click', () => finalizeazaSarit(false));
 
     } else {
-      // Fără antihistaminic — comportament simplu ca înainte
-      if (confirm('Marchezi ziua de azi ca „sărit" (tratamentul nu s-a putut face)?')) {
+      // Fără antihistaminic — modal de confirmare
+      showOverlay(`
+        <div class="modal">
+          <div class="modal-title">
+            Marchează ziua ca sărit
+            <button class="close-btn" onclick="closeOverlay()">✕</button>
+          </div>
+          <p style="font-size:14px;color:var(--text-light);margin-bottom:20px;line-height:1.6">
+            Ești sigur că tratamentul de azi nu s-a putut face?<br>
+            Staloral <strong>nu</strong> va scădea din stoc.
+          </p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-primary" id="modal-sarit-da">Da, marchează ca sărit</button>
+            <button class="btn btn-outline" onclick="closeOverlay()">Nu, anulează</button>
+          </div>
+        </div>
+      `);
+      document.getElementById('modal-sarit-da')?.addEventListener('click', () => {
         const pas = pasProtocolPentruZiua(t, ziuaTratamentului(t));
         t.istoric.push({
           data: today(), ora: Date.now(), finalizat: false, sarit: true,
@@ -2246,13 +2315,14 @@ function attachAcasaEvents() {
           simptome: [], totulOk: false
         });
         saveData();
+        closeOverlay();
         stopAllTimers();
         S.timerStepIdx = null;
         S.timerDone = false;
         document.getElementById('scroll-area').innerHTML = renderTab();
         attachTabEvents();
         toast('Ziua marcată ca sărit.');
-      }
+      });
     }
   });
 }
@@ -2293,7 +2363,7 @@ function buildPasi(t) {
   // ① Pași înainte de Staloral
   if (anti.activ && anti.pozitie === 'inainte')
     pasi.push({ id: 'anti', minute: anti.minute,
-      label: `💊 ${anti.tip === 'pastile' ? 'Pastilă' : 'Picături'} ${anti.nume}`,
+      label: `💊 ${anti.tip === 'pastile' ? 'Pastilă' : 'Antihistaminic'} ${anti.nume}`,
       sub: `Aștepți ${anti.minute} min înainte de Staloral` });
   extras.filter(p => p.pozitie === 'inainte').forEach((p, i) =>
     pasi.push({ id: `extra_pre_${i}`, minute: p.minute, label: p.label, sub: p.sub || '' }));
@@ -2309,7 +2379,7 @@ function buildPasi(t) {
   // ③ Pași după așteptare
   if (anti.activ && anti.pozitie === 'dupa')
     pasi.push({ id: 'anti', minute: anti.minute,
-      label: `💊 ${anti.tip === 'pastile' ? 'Pastilă' : 'Picături'} ${anti.nume}`,
+      label: `💊 ${anti.tip === 'pastile' ? 'Pastilă' : 'Antihistaminic'} ${anti.nume}`,
       sub: `Aștepți ${anti.minute} min după Staloral` });
   extras.filter(p => !p.pozitie || p.pozitie === 'dupa').forEach((p, i) =>
     pasi.push({ id: `extra_post_${i}`, minute: p.minute, label: p.label, sub: p.sub || '' }));
@@ -2778,6 +2848,16 @@ function attachSimptomeEvents() {
             sevRow.querySelectorAll('.sev-btn').forEach(b => b.classList.toggle('sel', b.dataset.sev === sb.dataset.sev));
           });
         });
+        // Câmp text pentru "Altele"
+        if (id === 'altele') {
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.className = 'altele-detalii';
+          inp.placeholder = 'Descrie pe scurt...';
+          inp.style.cssText = 'margin-top:8px;width:100%;padding:8px 10px;border:1px solid #DDF0ED;border-radius:8px;font-size:13px;box-sizing:border-box';
+          inp.addEventListener('click', e => e.stopPropagation());
+          row.appendChild(inp);
+        }
       }
     });
   });
@@ -3031,7 +3111,11 @@ function attachSetariEvents() {
   document.getElementById('btn-salveaza-email')?.addEventListener('click', () => {
     const t = tratamentActiv();
     if (!t) return;
-    t.email = document.getElementById('set-email')?.value.trim() || '';
+    const val = document.getElementById('set-email')?.value.trim() || '';
+    if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      toast('⚠️ Adresa de email nu este validă!'); return;
+    }
+    t.email = val;
     saveData();
     toast('Email salvat!');
   });
@@ -3128,7 +3212,7 @@ function attachSetariEvents() {
   });
 
   // Export
-  document.getElementById('btn-export')?.addEventListener('click', exportJSON);
+  document.getElementById('btn-export')?.addEventListener('click', showExportModal);
 
   // Import
   document.getElementById('btn-import')?.addEventListener('click', () => {
@@ -3218,14 +3302,29 @@ function showEditProtocol(t) {
   });
 
   document.getElementById('ep-save').addEventListener('click', () => {
-    // Salvează valorile curente din inputuri
-    document.querySelectorAll('#edit-protocol-rows .protocol-row').forEach((row, i) => {
-      if (protocol[i]) {
-        protocol[i].zile     = +(row.querySelector('.pr-zile')?.value || 1);
+    t.protocol = protocol;
+    saveData();
+    closeOverlay();
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+    toast('✅ Protocol actualizat!');
+  });
+}
+endar') {
+          protocol[i].dataStart = row.querySelector('.pr-data-start')?.value || protocol[i].dataStart;
+          protocol[i].dataEnd   = row.querySelector('.pr-data-end')?.value || protocol[i].dataEnd;
+        } else {
+          protocol[i].zile = +(row.querySelector('.pr-zile')?.value || 1);
+        }
         protocol[i].picaturi = +(row.querySelector('.pr-pic')?.value || 1);
         protocol[i].unitati  = +(row.querySelector('.pr-u')?.value || 10);
       }
     });
+    const pauze = detecteazaPauzeProtocol(protocol);
+    if (pauze > 0) {
+      toast(`⚠️ Există o pauză de ${pauze} ${pauze === 1 ? 'zi' : 'zile'} între pași calendaristici. Protocolul trebuie să fie continuu!`, 5000);
+      return;
+    }
     t.protocol = protocol;
     saveData();
     closeOverlay();
@@ -3254,16 +3353,51 @@ function valideazaImport(data) {
   return null; // totul ok
 }
 
-function exportJSON() {
-  const json = JSON.stringify(S.data, null, 2);
+function exportJSON(filtruId = null) {
+  let dataDeExportat;
+  if (filtruId && filtruId !== 'toti') {
+    const t = S.data.tratamente.find(x => x.id === filtruId);
+    dataDeExportat = { ...S.data, tratamente: t ? [t] : [], activId: t?.id || null };
+  } else {
+    dataDeExportat = S.data;
+  }
+  const json = JSON.stringify(dataDeExportat, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `miau-backup-${today()}.json`;
+  const numeFisier = filtruId && filtruId !== 'toti'
+    ? `miau-backup-${S.data.tratamente.find(x => x.id === filtruId)?.nume?.replace(/\s/g,'-') || 'copil'}-${today()}.json`
+    : `miau-backup-${today()}.json`;
+  a.download = numeFisier;
   a.click();
   URL.revokeObjectURL(url);
   toast('📤 Export realizat!');
+}
+
+function showExportModal() {
+  if (S.data.tratamente.length <= 1) { exportJSON(); return; }
+  showOverlay(`
+    <div class="modal">
+      <div class="modal-title">
+        📤 Export date
+        <button class="close-btn" onclick="closeOverlay()">✕</button>
+      </div>
+      <p style="font-size:14px;color:var(--text-light);margin-bottom:16px">Exportă pentru cine?</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary" data-export-id="toti">📦 Toți (${S.data.tratamente.length} copii)</button>
+        ${S.data.tratamente.map(t => `
+          <button class="btn btn-outline" data-export-id="${t.id}">👤 ${t.nume}</button>
+        `).join('')}
+      </div>
+    </div>
+  `);
+  document.querySelectorAll('[data-export-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeOverlay();
+      exportJSON(btn.dataset.exportId);
+    });
+  });
 }
 
 // ============================================================
