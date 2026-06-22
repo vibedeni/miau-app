@@ -1876,7 +1876,12 @@ function onbNext() {
       pozitie: d.antiPozitie || 'inainte',
       minute: d.antiMinute || 20
     };
-    S.data.tratamente.push(t);
+    if (S.data._backup) {
+      S.data.tratamente = [...S.data._backup.tratamente, t];
+      delete S.data._backup;
+    } else {
+      S.data.tratamente.push(t);
+    }
     S.data.activId = t.id;
     saveData();
     S.tab = 'acasa';
