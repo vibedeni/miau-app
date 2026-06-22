@@ -1,13 +1,14 @@
 // Service Worker — Miau App
 // Permite funcționarea offline după prima încărcare
 
-const CACHE_NAME = 'miau-v1.10';
+const CACHE_NAME = 'miau-v1.11';
 const FILES = [
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './icon-180.png'
 ];
 
 self.addEventListener('install', e => {
