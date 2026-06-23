@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.21';
+const APP_VERSION = '1.22';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -593,6 +593,26 @@ function esteZiTransitieFlacon(t) {
   return areInitiere;
 }
 
+function alerteStoc(t) {
+  const mesaje = [];
+  const s = t.staloral;
+  const a = t.antihistaminic;
+  if (s.flaconCurent <= s.alertaPicaturi) {
+    mesaje.push(`💧 Au mai rămas <strong>${s.flaconCurent} picături</strong> Staloral în flaconul curent.`);
+  }
+  if (s.flacoaneRamase <= s.alertaFlacoane) {
+    mesaje.push(`📦 Doar <strong>${s.flacoaneRamase} ${s.flacoaneRamase === 1 ? 'flacon' : 'flacoane'}</strong> de rezervă Staloral.`);
+  }
+  if (a.activ && a.stocInitial && a.stoc <= Math.ceil(a.stocInitial * 0.1)) {
+    mesaje.push(`💊 Stoc scăzut la <strong>${a.nume || 'antihistaminic'}</strong>: ${a.stoc} rămase.`);
+  }
+  return mesaje;
+}
+
+function trebuieBannerStocAscuns(t) {
+  return t.alertaStocAscunsaLa === today();
+}
+
 function trebuieBannerInstalare() {
   const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if (standalone) return false;
@@ -611,7 +631,18 @@ function renderAcasa() {
   const tranzitie = esteZiTransitieFlacon(t);
   const zileRamase = pas ? zileRamasePas(t, ziua) : null;
 
+  const alerte = alerteStoc(t);
+
   return `
+    ${(alerte.length > 0 && !trebuieBannerStocAscuns(t)) ? `
+    <div class="card" style="border:2px solid var(--danger);background:#FFF0F0">
+      <div style="font-size:14px;font-weight:700;color:#C00000;margin-bottom:6px">⚠️ Stoc scăzut</div>
+      <div style="font-size:13px;color:#C00000;line-height:1.6;margin-bottom:10px">
+        ${alerte.join('<br>')}
+      </div>
+      <button class="btn btn-danger" id="btn-ascunde-alerta-stoc">OK, am notat</button>
+    </div>
+    ` : ''}
     ${trebuieBannerInstalare() ? `
     <div class="card" style="border:2px solid var(--warning);background:#FFF8EC">
       <div style="font-size:14px;font-weight:700;color:#7A5500;margin-bottom:6px">📲 Adaugă Miau pe ecranul principal</div>
@@ -2414,6 +2445,16 @@ function attachAcasaEvents() {
     const el = document.getElementById('timer-display');
     if (el) el.textContent = formatMMSS(endTs - Date.now());
   }
+
+  // ── Banner alertă stoc scăzut ──
+  document.getElementById('btn-ascunde-alerta-stoc')?.addEventListener('click', () => {
+    const t = tratamentActiv();
+    if (!t) return;
+    t.alertaStocAscunsaLa = today();
+    saveData();
+    document.getElementById('scroll-area').innerHTML = renderTab();
+    attachTabEvents();
+  });
 
   // ── Banner instalare pe ecranul principal ──
   document.getElementById('btn-ascunde-banner-instalare')?.addEventListener('click', () => {
