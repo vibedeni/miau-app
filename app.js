@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.19';
+const APP_VERSION = '1.21';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -230,8 +230,10 @@ function ziuaTratamentului(tratament) {
 }
 
 function pasProtocolPentruZiua(tratament, ziua) {
-  const azi = today();
+  return pasProtocolPentruZiuaSiData(tratament, ziua, today());
+}
 
+function pasProtocolPentruZiuaSiData(tratament, ziua, azi) {
   // Întâi verifică pașii cu date calendaristice — au prioritate
   for (const pas of tratament.protocol) {
     if (pas.tipData === 'calendar' && pas.dataStart && pas.dataEnd) {
@@ -247,6 +249,22 @@ function pasProtocolPentruZiua(tratament, ziua) {
     if (ziua <= contor) return pas;
   }
   return tratament.protocol[tratament.protocol.length - 1] || null;
+}
+
+// Găsește data calendaristică (reală) la care tratamentul a ajuns prima dată la 100u,
+// simulând ziua cu ziua de la data de start până azi — folosește exact logica live a app-ului.
+function gasesteDataTransitieMentinere(t) {
+  const start = new Date(t.dataStart); start.setHours(0, 0, 0, 0);
+  const azi = new Date(); azi.setHours(0, 0, 0, 0);
+  const totalZile = Math.floor((azi - start) / 86400000) + 1;
+  if (totalZile < 1) return null;
+  for (let ziua = 1; ziua <= totalZile; ziua++) {
+    const d = new Date(start); d.setDate(d.getDate() + ziua - 1);
+    const dataStr = d.toISOString().slice(0, 10);
+    const pas = pasProtocolPentruZiuaSiData(t, ziua, dataStr);
+    if (pas && pas.unitati === 100) return dataStr;
+  }
+  return null;
 }
 
 function tratatAziExista(tratament) {
@@ -1658,6 +1676,10 @@ function renderOnboardingStep(step, d) {
         <input type="date" id="onb-data" value="${d.dataStart || today()}">
         <p class="hint">Dacă tratamentul a început deja, pune data reală de start — aplicația va calcula automat ziua curentă.</p>
       </div>
+      <div style="background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#7A5500;line-height:1.6">
+        💡 Protocolul e complet, de la ziua 1. App-ul calculează automat în ce zi ești azi față de data de start.<br>
+        Dacă tratamentul a început deja și nu vrei să introduci istoricul, poți introduce doar pașii de acum și să schimbi data de start pe ziua de azi.
+      </div>
     `;
 
     case 2: return `
@@ -1690,7 +1712,7 @@ function renderOnboardingStep(step, d) {
           if (!d.protocol || d.protocol.length === 0) {
             d.protocol = d.faza === 'mentinere' ? defaultProtocolMentinere() : defaultProtocolInitiere();
           }
-          return d.protocol.map((p, i) => renderProtocolRow(p, i)).join('');
+          return d.protocol.map((p, i) => renderProtocolRow(p, i, d.protocol)).join('');
         })()}
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
@@ -1748,7 +1770,7 @@ function renderOnboardingStep(step, d) {
         <div class="form-group">
           <label>Tip</label>
           <div class="toggle-group">
-            <button class="toggle-btn ${(!d.antiTip || d.antiTip === 'pastile') ? 'selected' : ''}" data-antitip="pastile">💊 Antihistaminic</button>
+            <button class="toggle-btn ${(!d.antiTip || d.antiTip === 'pastile') ? 'selected' : ''}" data-antitip="pastile">💊 Pastile</button>
             <button class="toggle-btn ${d.antiTip === 'picaturi' ? 'selected' : ''}" data-antitip="picaturi">💧 Picături</button>
           </div>
         </div>
@@ -1786,9 +1808,37 @@ function renderOnboardingStep(step, d) {
   }
 }
 
-function renderProtocolRow(p, i) {
+function minDataPentruRand(proto, i) {
+  for (let j = i - 1; j >= 0; j--) {
+    if (proto[j].tipData === 'calendar' && proto[j].dataEnd) return addZile(proto[j].dataEnd, 1);
+  }
+  return null;
+}
+
+function addZile(dataStr, n) {
+  const d = new Date(dataStr);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function cascadeazaDateleUrmatoare(proto) {
+  for (let i = 0; i < proto.length; i++) {
+    if (proto[i].tipData !== 'calendar') continue;
+    const minStart = minDataPentruRand(proto, i);
+    if (minStart && (!proto[i].dataStart || proto[i].dataStart < minStart)) {
+      proto[i].dataStart = minStart;
+    }
+    if (proto[i].dataEnd && proto[i].dataStart && proto[i].dataEnd < proto[i].dataStart) {
+      proto[i].dataEnd = '';
+    }
+  }
+}
+
+function renderProtocolRow(p, i, proto = null) {
   const isCalendar = p.tipData === 'calendar';
   const is100u = p.unitati === 100;
+  const minStart = proto ? minDataPentruRand(proto, i) : null;
+  const valStart = p.dataStart || minStart || today();
   return `
     <div class="protocol-row" data-idx="${i}" style="flex-wrap:wrap;gap:6px;${is100u ? 'border-left:3px solid #5B9BD5;padding-left:8px;background:#F0F6FC;' : ''}">${is100u ? '<span style="font-size:11px;color:#3A7ABD;font-weight:600;width:100%;margin-bottom:2px">💙 Menținere (100u)</span>' : ''}
       <!-- Toggle tip dată -->
@@ -1806,10 +1856,11 @@ function renderProtocolRow(p, i) {
       ` : `
         <!-- Date calendaristice -->
         <div style="display:flex;gap:4px;align-items:center;width:100%">
-          <input type="date" class="pr-data-start" value="${p.dataStart || today()}" style="flex:1;font-size:16px;padding:6px">
+          <input type="date" class="pr-data-start" value="${valStart}" ${minStart ? `min="${minStart}"` : ''} style="flex:1;font-size:16px;padding:6px">
           <span class="sep">→</span>
-          <input type="date" class="pr-data-end" value="${p.dataEnd || ''}" style="flex:1;font-size:16px;padding:6px">
+          <input type="date" class="pr-data-end" value="${p.dataEnd || ''}" min="${valStart}" style="flex:1;font-size:16px;padding:6px">
         </div>
+        ${minStart ? `<p class="hint" style="width:100%;margin:2px 0 0">Continuă automat de la pasul anterior (${formatDate(minStart)}).</p>` : ''}
       `}
 
       <span class="sep">×</span>
@@ -1866,7 +1917,7 @@ function attachOnboardingStepEvents() {
     if (!d.protocol) d.protocol = [];
     d.protocol.push({ id: uid(), zile: 1, picaturi: 1, unitati: 10, tipData: 'zile' });
     document.getElementById('protocol-rows').innerHTML =
-      d.protocol.map((p, i) => renderProtocolRow(p, i)).join('');
+      d.protocol.map((p, i) => renderProtocolRow(p, i, d.protocol)).join('');
     attachProtocolRowEvents('protocol-rows', d.protocol);
   });
   document.getElementById('btn-adauga-pas-100')?.addEventListener('click', () => {
@@ -1937,7 +1988,7 @@ function attachProtocolRowEvents(containerId = 'protocol-rows', protocol = null)
       btn.addEventListener('click', () => {
         p.tipData = btn.dataset.rowtip;
         if (p.tipData === 'calendar' && !p.dataStart) {
-          p.dataStart = today();
+          p.dataStart = minDataPentruRand(proto, i) || today();
           p.dataEnd = '';
           delete p.zile;
         } else if (p.tipData === 'zile') {
@@ -1945,14 +1996,38 @@ function attachProtocolRowEvents(containerId = 'protocol-rows', protocol = null)
           delete p.dataStart;
           delete p.dataEnd;
         }
-        document.getElementById(containerId).innerHTML = proto.map((px, j) => renderProtocolRow(px, j)).join('');
+        document.getElementById(containerId).innerHTML = proto.map((px, j) => renderProtocolRow(px, j, proto)).join('');
         attachProtocolRowEvents(containerId, proto);
       });
     });
 
     row.querySelector('.pr-zile')?.addEventListener('change', e => { p.zile = +e.target.value; });
-    row.querySelector('.pr-data-start')?.addEventListener('change', e => { p.dataStart = e.target.value; });
-    row.querySelector('.pr-data-end')?.addEventListener('change', e => { p.dataEnd = e.target.value; });
+
+    row.querySelector('.pr-data-start')?.addEventListener('change', e => {
+      const minStart = minDataPentruRand(proto, i);
+      let val = e.target.value;
+      if (minStart && val < minStart) {
+        toast(`⚠️ Data nu poate fi înainte de ${formatDate(minStart)} (continuarea pasului anterior).`);
+        val = minStart;
+      }
+      p.dataStart = val;
+      if (p.dataEnd && p.dataEnd < p.dataStart) p.dataEnd = '';
+      cascadeazaDateleUrmatoare(proto);
+      document.getElementById(containerId).innerHTML = proto.map((px, j) => renderProtocolRow(px, j, proto)).join('');
+      attachProtocolRowEvents(containerId, proto);
+    });
+
+    row.querySelector('.pr-data-end')?.addEventListener('change', e => {
+      let val = e.target.value;
+      if (p.dataStart && val < p.dataStart) {
+        toast('⚠️ Data de sfârșit nu poate fi înainte de data de început.');
+        val = p.dataStart;
+      }
+      p.dataEnd = val;
+      cascadeazaDateleUrmatoare(proto);
+      document.getElementById(containerId).innerHTML = proto.map((px, j) => renderProtocolRow(px, j, proto)).join('');
+      attachProtocolRowEvents(containerId, proto);
+    });
 
     row.querySelector('.pr-pic')?.addEventListener('change', e => {
       p.picaturi = +e.target.value;
@@ -1965,7 +2040,7 @@ function attachProtocolRowEvents(containerId = 'protocol-rows', protocol = null)
 
     row.querySelector('[data-del]')?.addEventListener('click', () => {
       proto.splice(i, 1);
-      document.getElementById(containerId).innerHTML = proto.map((px, j) => renderProtocolRow(px, j)).join('');
+      document.getElementById(containerId).innerHTML = proto.map((px, j) => renderProtocolRow(px, j, proto)).join('');
       attachProtocolRowEvents(containerId, proto);
     });
   });
@@ -1976,7 +2051,7 @@ function autoFill3Ani(pas, proto, idx, containerId) {
   if (pas.picaturi === 3 && pas.unitati === 100 && pas.tipData !== 'calendar') {
     if (!pas.zile || pas.zile < 100) {
       pas.zile = 1095; // 3 ani
-      document.getElementById(containerId).innerHTML = proto.map((p, j) => renderProtocolRow(p, j)).join('');
+      document.getElementById(containerId).innerHTML = proto.map((p, j) => renderProtocolRow(p, j, proto)).join('');
       attachProtocolRowEvents(containerId, proto);
       toast('3 pic × 100u → 3 ani completați automat 🎉');
     }
@@ -2052,6 +2127,24 @@ function onbNext() {
       pozitie: d.antiPozitie || 'inainte',
       minute: d.antiMinute || 20
     };
+
+    // Dacă, pe baza protocolului introdus, tranziția la 100u s-a petrecut deja
+    // în trecut (înainte de azi), nu mai cerem confirmare pe Acasă (asta ar reseta
+    // stocul introdus mai sus) — o marcăm direct ca confirmată și recreăm milestone-ul istoric.
+    const areInitiere = t.protocol.some(p => p.unitati === 10);
+    if (areInitiere) {
+      const dataTransitie = gasesteDataTransitieMentinere(t);
+      if (dataTransitie) {
+        t.tranzitieFlacon = true;
+        if (!t.milestones) t.milestones = [];
+        t.milestones.push({
+          data: dataTransitie,
+          label: '💙 Tranziție la Menținere (100u)',
+          detalii: 'Calculat automat din protocolul introdus la configurare'
+        });
+      }
+    }
+
     if (S.data._backup) {
       S.data.tratamente = [...S.data._backup.tratamente, t];
       delete S.data._backup;
@@ -2650,7 +2743,7 @@ function showEditAntihistaminic(t) {
       <div class="form-group">
         <label>Tip</label>
         <div class="toggle-group" id="anti-tip-group">
-          <button class="toggle-btn ${tmpTip === 'pastile' ? 'selected' : ''}" data-antitip2="pastile">💊 Antihistaminic</button>
+          <button class="toggle-btn ${tmpTip === 'pastile' ? 'selected' : ''}" data-antitip2="pastile">💊 Pastile</button>
           <button class="toggle-btn ${tmpTip === 'picaturi' ? 'selected' : ''}" data-antitip2="picaturi">💧 Picături</button>
         </div>
       </div>
@@ -3437,7 +3530,7 @@ function showEditProtocol(t) {
         Modificarea se aplică zilelor viitoare. Istoricul și stocurile rămân neschimbate.
       </p>
       <div id="edit-protocol-rows">
-        ${protocol.map((p, i) => renderProtocolRow(p, i)).join('')}
+        ${protocol.map((p, i) => renderProtocolRow(p, i, protocol)).join('')}
       </div>
       <button class="btn btn-outline" id="ep-add" style="margin-top:8px">+ Adaugă pas</button>
       <div class="btn-row" style="margin-top:16px">
@@ -3451,7 +3544,7 @@ function showEditProtocol(t) {
 
   document.getElementById('ep-add').addEventListener('click', () => {
     protocol.push({ id: uid(), zile: 1, picaturi: 1, unitati: 100, tipData: 'zile' });
-    document.getElementById('edit-protocol-rows').innerHTML = protocol.map((p, i) => renderProtocolRow(p, i)).join('');
+    document.getElementById('edit-protocol-rows').innerHTML = protocol.map((p, i) => renderProtocolRow(p, i, protocol)).join('');
     attachProtocolRowEvents('edit-protocol-rows', protocol);
   });
 
