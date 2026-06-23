@@ -10,7 +10,7 @@
 //  CONSTANTE
 // ============================================================
 
-const APP_VERSION = '1.18';
+const APP_VERSION = '1.19';
 const STORAGE_KEY = 'miau_data';
 const TIMER_KEY   = 'miau_timer';
 
@@ -918,23 +918,35 @@ function renderStocuri() {
   const picAlert = s.flaconCurent <= s.alertaPicaturi;
   const flaconAlert = s.flacoaneRamase <= s.alertaFlacoane;
 
+  // Estimare „îți ajunge ~N zile"
+  const pasAzi = pasProtocolPentruZiua(t, ziuaTratamentului(t));
+  const dozaZi = pasAzi?.picaturi || 0;
+  const flaconPlinPic = 50;
+  let estimText = '';
+  if (dozaZi > 0) {
+    const zile = Math.floor(s.flaconCurent / dozaZi);
+    const d = new Date(); d.setDate(d.getDate() + zile);
+    estimText = `îți ajunge ~${zile} ${zile === 1 ? 'zi' : 'zile'} · până pe ${formatDate(d.toISOString().slice(0,10))}`;
+  }
+  const fillPct = Math.max(0, Math.min(100, Math.round(s.flaconCurent / flaconPlinPic * 100)));
+
   return `
     <!-- Staloral -->
     <div class="card card-pink">
       <div class="card-title">💧 Staloral — Flacon curent</div>
-      <div class="stock-grid">
-        <div class="stock-item">
-          <div class="stock-icon">💧</div>
-          <div class="stock-value ${picAlert ? 'stock-alert' : ''}">${s.flaconCurent}</div>
-          <div class="stock-label">picături rămase</div>
-          ${picAlert ? '<div style="font-size:11px;color:var(--danger);font-weight:600">⚠️ Stoc scăzut!</div>' : ''}
+      <div style="display:flex;gap:18px;align-items:center;margin-bottom:12px">
+        <div class="stock-bottle"><div class="stock-fill" style="height:${fillPct}%"></div></div>
+        <div style="flex:1">
+          <div class="stock-value ${picAlert ? 'stock-alert' : ''}">${s.flaconCurent} <span style="font-size:15px;font-weight:600;color:var(--text-light)">/ ${flaconPlinPic} pic.</span></div>
+          ${picAlert ? '<div style="font-size:11px;color:var(--danger);font-weight:600;margin-top:4px">⚠️ Stoc scăzut!</div>' : ''}
+          ${estimText ? `<div class="badge badge-pink" style="margin-top:8px;display:inline-block">⏳ ${estimText}</div>` : ''}
         </div>
-        <div class="stock-item">
-          <div class="stock-icon">📦</div>
-          <div class="stock-value ${flaconAlert ? 'stock-warn' : ''}">${s.flacoaneRamase}</div>
-          <div class="stock-label">flacoane în rezervă</div>
-          ${flaconAlert ? '<div style="font-size:11px;color:var(--warning);font-weight:600">⚠️ Puține flacoane!</div>' : ''}
-        </div>
+      </div>
+      <div class="stock-pips">
+        <span style="font-size:12.5px;color:var(--text-light);font-weight:600">📦 Rezervă:</span>
+        ${Array.from({length: Math.max(s.flacoaneRamase, 0)}).map(()=>'<i class="pip on"></i>').join('')}
+        <span style="font-size:12.5px;color:var(--text-light)">${s.flacoaneRamase} ${s.flacoaneRamase === 1 ? 'flacon' : 'flacoane'}</span>
+        ${flaconAlert ? '<span style="font-size:11px;color:var(--warning);font-weight:600;margin-left:4px">⚠️ Puține!</span>' : ''}
       </div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-outline btn-small" id="btn-flacon-nou">🆕 Flacon nou (50)</button>
@@ -1268,8 +1280,28 @@ function renderListaIstorica(t) {
 //  TAB: SETĂRI
 // ============================================================
 
+function sectiune(id, icon, titlu, dreapta, contentHTML) {
+  const open = !!S.setariOpen[id];
+  return `
+    <div class="set-acc ${open ? 'open' : ''}">
+      <button class="set-acc-head" data-acc="${id}">
+        <span class="set-acc-icon">${icon}</span>
+        <span class="set-acc-title">${titlu}</span>
+        ${dreapta ? `<span class="set-acc-meta">${dreapta}</span>` : ''}
+        <span class="set-acc-chevron">⌄</span>
+      </button>
+      ${open ? `<div class="set-acc-body">${contentHTML}</div>` : ''}
+    </div>
+  `;
+}
+
+function temaNume(id) {
+  return { menta: 'Mentă', soare: 'Soare', salvie: 'Salvie', nocturn: 'Nocturn' }[id] || 'Mentă';
+}
+
 function renderSetari() {
   const t = tratamentActiv();
+  S.setariOpen = S.setariOpen || {};
   const tema = temaCurenta();
   const teme = [
     { id:'menta',   nume:'Mentă',   desc:'Verde-teal, prietenos · pentru copil', c:['#4A9B8E','#5BA0C8','#F0F8F6'] },
@@ -1277,64 +1309,57 @@ function renderSetari() {
     { id:'salvie',  nume:'Salvie',  desc:'Verde calm, sobru · pentru părinte',   c:['#2F5D50','#7BA593','#F4F2E9'] },
     { id:'nocturn', nume:'Nocturn', desc:'Întunecat, mint · doza de seară',      c:['#161C2E','#5BE3C0','#232C46'] },
   ];
-  return `
-    <div class="card">
-      <div class="card-title">🎨 Temă</div>
-      <p class="hint" style="margin-bottom:12px">Alege cum arată aplicația. Se salvează pe telefon.</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${teme.map(tm => `
-          <button class="tema-optiune" data-tema-set="${tm.id}"
-            style="display:flex;align-items:center;gap:14px;padding:12px;cursor:pointer;
-              border-radius:14px;background:${tema===tm.id?'var(--teal-light)':'var(--bg)'};
-              border:2px solid ${tema===tm.id?'var(--teal)':'transparent'};text-align:left;width:100%">
-            <span style="display:flex;border-radius:10px;overflow:hidden;flex-shrink:0;
-              box-shadow:0 1px 4px rgba(0,0,0,0.12)">
-              <span style="width:20px;height:40px;background:${tm.c[0]}"></span>
-              <span style="width:20px;height:40px;background:${tm.c[1]}"></span>
-              <span style="width:20px;height:40px;background:${tm.c[2]}"></span>
-            </span>
-            <span style="flex:1">
-              <span style="display:block;font-weight:700;font-size:16px;color:var(--text)">${tm.nume}</span>
-              <span style="display:block;font-size:12.5px;color:var(--text-light)">${tm.desc}</span>
-            </span>
-            ${tema===tm.id
-              ? '<span style="width:24px;height:24px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">✓</span>'
-              : '<span style="width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0"></span>'}
-          </button>
-        `).join('')}
-      </div>
+
+  const continutTema = `
+    <p class="hint" style="margin-bottom:12px">Alege cum arată aplicația. Se salvează pe telefon.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${teme.map(tm => `
+        <button class="tema-optiune" data-tema-set="${tm.id}"
+          style="display:flex;align-items:center;gap:14px;padding:12px;cursor:pointer;
+            border-radius:14px;background:${tema===tm.id?'var(--teal-light)':'var(--bg)'};
+            border:2px solid ${tema===tm.id?'var(--teal)':'transparent'};text-align:left;width:100%">
+          <span style="display:flex;border-radius:10px;overflow:hidden;flex-shrink:0;
+            box-shadow:0 1px 4px rgba(0,0,0,0.12)">
+            <span style="width:20px;height:40px;background:${tm.c[0]}"></span>
+            <span style="width:20px;height:40px;background:${tm.c[1]}"></span>
+            <span style="width:20px;height:40px;background:${tm.c[2]}"></span>
+          </span>
+          <span style="flex:1">
+            <span style="display:block;font-weight:700;font-size:16px;color:var(--text)">${tm.nume}</span>
+            <span style="display:block;font-size:12.5px;color:var(--text-light)">${tm.desc}</span>
+          </span>
+          ${tema===tm.id
+            ? '<span style="width:24px;height:24px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">✓</span>'
+            : '<span style="width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0"></span>'}
+        </button>
+      `).join('')}
     </div>
+  `;
 
-    ${renderDonatii()}
-
-    ${t ? `
+  const continutProtocolFlux = t ? `
       <!-- Protocol -->
-      <div class="card">
-        <div class="card-title">📋 Protocol complet — ${t.nume}</div>
-        <div style="margin-bottom:12px">
-          ${t.protocol.map((p, i) => {
-            const desc = p.tipData === 'calendar'
-              ? `${formatDate(p.dataStart)} → ${formatDate(p.dataEnd)}`
-              : `${p.zile} ${p.zile === 1 ? 'zi' : 'zile'}`;
-            return `
-              <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #EAF4F2">
-                <span style="color:var(--text-light);font-size:13px;width:20px">${i+1}.</span>
-                <span style="font-size:14px">${desc} × ${p.picaturi} pic. × ${p.unitati}u = <strong>${p.picaturi * p.unitati}u/zi</strong></span>
-              </div>
-            `;
-          }).join('') || '<p style="color:var(--text-light);font-size:14px">Niciun protocol configurat.</p>'}
-        </div>
-        <button class="btn btn-outline" id="btn-edit-protocol">✏️ Modifică protocolul</button>
-        <p class="hint important" style="margin-top:8px">Modificarea protocolului nu resetează istoricul sau stocurile.</p>
-        <div style="background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#7A5500;line-height:1.6">
-          💡 Protocolul e complet, de la ziua 1. App-ul calculează automat în ce zi ești azi față de data de start.<br>
-          Dacă tratamentul a început deja și nu vrei să introduci istoricul, poți introduce doar pașii de acum și să schimbi data de start pe ziua de azi.
-        </div>
+      <div style="margin-bottom:12px">
+        ${t.protocol.map((p, i) => {
+          const desc = p.tipData === 'calendar'
+            ? `${formatDate(p.dataStart)} → ${formatDate(p.dataEnd)}`
+            : `${p.zile} ${p.zile === 1 ? 'zi' : 'zile'}`;
+          return `
+            <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #EAF4F2">
+              <span style="color:var(--text-light);font-size:13px;width:20px">${i+1}.</span>
+              <span style="font-size:14px">${desc} × ${p.picaturi} pic. × ${p.unitati}u = <strong>${p.picaturi * p.unitati}u/zi</strong></span>
+            </div>
+          `;
+        }).join('') || '<p style="color:var(--text-light);font-size:14px">Niciun protocol configurat.</p>'}
+      </div>
+      <button class="btn btn-outline" id="btn-edit-protocol">✏️ Modifică protocolul</button>
+      <p class="hint important" style="margin-top:8px">Modificarea protocolului nu resetează istoricul sau stocurile.</p>
+      <div style="background:#FFF8EC;border:1px solid #FFD060;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#7A5500;line-height:1.6">
+        💡 Protocolul e complet, de la ziua 1. App-ul calculează automat în ce zi ești azi față de data de start.<br>
+        Dacă tratamentul a început deja și nu vrei să introduci istoricul, poți introduce doar pașii de acum și să schimbi data de start pe ziua de azi.
       </div>
 
       <!-- Flux zilnic tratament -->
-      <div class="card">
-        <div class="card-title">🔄 Flux zilnic tratament</div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;line-height:1.5">
           Personalizează pașii care apar zilnic, în ordinea în care se fac.
           Poți schimba antihistaminicul, adăuga pași înainte sau după Staloral,
@@ -1435,34 +1460,33 @@ function renderSetari() {
           + Adaugă pas personalizat
         </button>
       </div>
+  ` : '';
 
+  const continutEmail = t ? `
       <!-- Email -->
-      <div class="card">
-        <div class="card-title">📧 Rapoarte zilnice pe email</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;margin-bottom:12px">
-          <div>
-            <div style="font-weight:600;font-size:15px">Trimite raport zilnic</div>
-            <div style="font-size:12px;color:var(--text-light)">După fiecare tratament finalizat</div>
-          </div>
-          <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer">
-            <input type="checkbox" id="toggle-email" ${t.emailActiv ? 'checked' : ''}
-              style="opacity:0;width:0;height:0;position:absolute">
-            <span id="toggle-email-track" style="position:absolute;inset:0;background:${t.emailActiv ? 'var(--teal)' : '#CCC'};
-              border-radius:13px;transition:0.2s"></span>
-            <span style="position:absolute;left:${t.emailActiv ? '24px' : '2px'};top:2px;width:22px;height:22px;
-              background:white;border-radius:50%;transition:0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"
-              id="toggle-email-thumb"></span>
-          </label>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;margin-bottom:12px">
+        <div>
+          <div style="font-weight:600;font-size:15px">Trimite raport zilnic</div>
+          <div style="font-size:12px;color:var(--text-light)">După fiecare tratament finalizat</div>
         </div>
-        <div class="form-group">
-          <label>Adresă de email</label>
-          <input type="email" id="set-email" value="${t.email || ''}" placeholder="parinte@email.com">
-        </div>
-        <button class="btn btn-outline" id="btn-salveaza-email">Salvează</button>
+        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer">
+          <input type="checkbox" id="toggle-email" ${t.emailActiv ? 'checked' : ''}
+            style="opacity:0;width:0;height:0;position:absolute">
+          <span id="toggle-email-track" style="position:absolute;inset:0;background:${t.emailActiv ? 'var(--teal)' : '#CCC'};
+            border-radius:13px;transition:0.2s"></span>
+          <span style="position:absolute;left:${t.emailActiv ? '24px' : '2px'};top:2px;width:22px;height:22px;
+            background:white;border-radius:50%;transition:0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"
+            id="toggle-email-thumb"></span>
+        </label>
       </div>
+      <div class="form-group">
+        <label>Adresă de email</label>
+        <input type="email" id="set-email" value="${t.email || ''}" placeholder="parinte@email.com">
+      </div>
+      <button class="btn btn-outline" id="btn-salveaza-email">Salvează</button>
 
       <!-- EmailJS configurare -->
-      <div class="card">
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
         <div class="card-title">⚙️ Configurare EmailJS</div>
         ${(t.emailjs?.serviceId && !S.ejsExpanded) ? (() => {
           const ejs = t.emailjs;
@@ -1507,64 +1531,65 @@ function renderSetari() {
           </div>
         `}
       </div>
-    ` : ''}
+  ` : '';
 
-    <!-- Tratamente / Copii -->
-    <div class="card">
-      <div class="card-title">🐾 Copii / Tratamente</div>
-      ${S.data.tratamente.map(tr => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #EAF4F2">
-          <div>
-            <div style="font-weight:600">${tr.nume}</div>
-            <div style="font-size:12px;color:var(--text-light)">Start: ${formatDate(tr.dataStart)}</div>
-          </div>
-          <div style="display:flex;gap:8px">
-            ${tr.id === S.data.activId ? '<span class="badge badge-pink">Activ</span>' :
-              `<button class="btn btn-outline btn-small" data-activare="${tr.id}">Activează</button>`}
-          </div>
+  const continutCopii = `
+    ${S.data.tratamente.map(tr => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #EAF4F2">
+        <div>
+          <div style="font-weight:600">${tr.nume}</div>
+          <div style="font-size:12px;color:var(--text-light)">Start: ${formatDate(tr.dataStart)}</div>
         </div>
-      `).join('')}
-      <div style="margin-top:12px">
-        <button class="btn btn-primary" id="btn-tratament-nou">+ Copil / Tratament nou</button>
+        <div style="display:flex;gap:8px">
+          ${tr.id === S.data.activId ? '<span class="badge badge-pink">Activ</span>' :
+            `<button class="btn btn-outline btn-small" data-activare="${tr.id}">Activează</button>`}
+        </div>
       </div>
+    `).join('')}
+    <div style="margin-top:12px">
+      <button class="btn btn-primary" id="btn-tratament-nou">+ Copil / Tratament nou</button>
     </div>
+  `;
 
-    <!-- Link Staloral custom -->
-    ${t ? `
-    <div class="card">
-      <div class="card-title">🔗 Link căutare Staloral</div>
-      <p style="font-size:13px;color:var(--text-light);margin-bottom:10px;line-height:1.5">
-        Implicit, aplicația caută Staloral pisică pe Farmacia Tei. Dacă tratamentul este pentru alt alergen, poți introduce un link personalizat.
-      </p>
-      <label style="font-size:13px;color:var(--text-light);display:block;margin-bottom:4px">Link personalizat (lasă gol pentru default pisică)</label>
-      <input type="url" id="input-link-staloral"
-        placeholder="Lipește linkul aici..."
-        value="${t.linkStaloral || ''}"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px">
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary btn-small" id="btn-salveaza-link-staloral" style="width:auto;padding:8px 16px">Salvează</button>
-        ${t.linkStaloral ? `<button class="btn btn-outline btn-small" id="btn-reseteaza-link-staloral" style="width:auto;padding:8px 16px;color:var(--text-light)">Resetează la default</button>` : ''}
-      </div>
+  const continutLink = t ? `
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:10px;line-height:1.5">
+      Implicit, aplicația caută Staloral pisică pe Farmacia Tei. Dacă tratamentul este pentru alt alergen, poți introduce un link personalizat.
+    </p>
+    <label style="font-size:13px;color:var(--text-light);display:block;margin-bottom:4px">Link personalizat (lasă gol pentru default pisică)</label>
+    <input type="url" id="input-link-staloral"
+      placeholder="Lipește linkul aici..."
+      value="${t.linkStaloral || ''}"
+      style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-small" id="btn-salveaza-link-staloral" style="width:auto;padding:8px 16px">Salvează</button>
+      ${t.linkStaloral ? `<button class="btn btn-outline btn-small" id="btn-reseteaza-link-staloral" style="width:auto;padding:8px 16px;color:var(--text-light)">Resetează la default</button>` : ''}
     </div>
-    ` : ''}
+  ` : '';
 
-    <!-- Export / Import -->
-    <div class="card">
-      <div class="card-title">💾 Export / Import date</div>
-      <div class="btn-row">
-        <button class="btn btn-outline" id="btn-export">📤 Export JSON</button>
-        <button class="btn btn-outline" id="btn-import">📥 Import JSON</button>
-      </div>
-      <p class="hint" style="margin-top:8px">Exportă toate datele ca fișier JSON — pentru backup sau transfer pe alt dispozitiv / al doilea părinte.</p>
-      <input type="file" id="import-file" accept=".json" style="display:none">
+  const continutExport = `
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btn-export">📤 Export JSON</button>
+      <button class="btn btn-outline" id="btn-import">📥 Import JSON</button>
     </div>
+    <p class="hint" style="margin-top:8px">Exportă toate datele ca fișier JSON — pentru backup sau transfer pe alt dispozitiv / al doilea părinte.</p>
+    <input type="file" id="import-file" accept=".json" style="display:none">
+  `;
 
-    <!-- Pericol -->
-    <div class="card" style="border-left:4px solid var(--danger)">
-      <div class="card-title" style="color:var(--danger)">⚠️ Resetare</div>
-      <button class="btn btn-danger" id="btn-reset">Șterge toate datele</button>
-      <p class="hint" style="margin-top:8px">Atenție: șterge tot — tratamente, istoric, stocuri. Ireversibil!</p>
-    </div>
+  const continutReset = `
+    <button class="btn btn-danger" id="btn-reset">Șterge toate datele</button>
+    <p class="hint" style="margin-top:8px">Atenție: șterge tot — tratamente, istoric, stocuri. Ireversibil!</p>
+  `;
+
+  return `
+    ${renderDonatii()}
+
+    ${sectiune('tema', '🎨', 'Temă', temaNume(tema), continutTema)}
+    ${t ? sectiune('protocol', '📋', 'Protocol & pași zilnici', '', continutProtocolFlux) : ''}
+    ${t ? sectiune('email', '📧', 'Rapoarte pe email', t.emailActiv ? '<span class="set-pill">pornit</span>' : '', continutEmail) : ''}
+    ${sectiune('copii', '🐾', 'Copii / Tratamente', String(S.data.tratamente.length), continutCopii)}
+    ${t ? sectiune('staloral', '🔗', 'Link căutare Staloral', '', continutLink) : ''}
+    ${sectiune('date', '💾', 'Export / Import date', '', continutExport)}
+    ${sectiune('reset', '⚠️', 'Resetare', '', continutReset)}
   `;
 }
 
@@ -3168,6 +3193,16 @@ function attachStocuriEvents() {
 // --- SETĂRI ---
 
 function attachSetariEvents() {
+  // Acordeon secțiuni
+  document.querySelectorAll('[data-acc]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.acc;
+      S.setariOpen[id] = !S.setariOpen[id];
+      document.getElementById('scroll-area').innerHTML = renderTab();
+      attachTabEvents();
+    });
+  });
+
   // Antihistaminic — editare
   document.getElementById('btn-edit-anti')?.addEventListener('click', () => {
     const t = tratamentActiv(); if (!t) return;
