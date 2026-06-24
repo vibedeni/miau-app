@@ -305,6 +305,7 @@ const LANG = {
     protocol_row_zile: '🔢 Zile',
     protocol_row_calendar: '📅 Date',
     protocol_row_zile_placeholder: 'zile',
+    unitati_pe_zi: 'u/zi',
     protocol_row_pic_placeholder: 'pic.',
 
     // -- toast / confirm / modale partajate --
@@ -726,6 +727,7 @@ const LANG = {
     protocol_row_zile: '🔢 Days',
     protocol_row_calendar: '📅 Dates',
     protocol_row_zile_placeholder: 'days',
+    unitati_pe_zi: 'u/day',
     protocol_row_pic_placeholder: 'drops',
 
     toast_eroare_salvare: '⚠️ Error saving — storage full?',
@@ -1055,7 +1057,7 @@ function saveData() {
 const TEME_VALIDE = ['menta', 'soare', 'salvie', 'nocturn'];
 
 function aplicaTema(tema) {
-  if (!TEME_VALIDE.includes(tema)) tema = 'menta';
+  if (!TEME_VALIDE.includes(tema)) tema = 'salvie';
   if (tema === 'menta') document.documentElement.removeAttribute('data-tema');
   else document.documentElement.setAttribute('data-tema', tema);
   localStorage.setItem('miau_tema', tema);
@@ -1064,7 +1066,7 @@ function aplicaTema(tema) {
 }
 
 function temaCurenta() {
-  return localStorage.getItem('miau_tema') || 'menta';
+  return localStorage.getItem('miau_tema') || 'salvie';
 }
 
 function tratamentActiv() {
@@ -2308,7 +2310,7 @@ function renderSetari() {
           return `
             <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #EAF4F2">
               <span style="color:var(--text-light);font-size:13px;width:20px">${i+1}.</span>
-              <span style="font-size:14px">${desc} × ${p.picaturi} ${t('protocol_row_pic_placeholder')} × ${p.unitati}u = <strong>${p.picaturi * p.unitati}u/zi</strong></span>
+              <span style="font-size:14px">${desc} × ${p.picaturi} ${t('protocol_row_pic_placeholder')} × ${p.unitati}u = <strong>${p.picaturi * p.unitati} ${t('unitati_pe_zi')}</strong></span>
             </div>
           `;
         }).join('') || `<p style="color:var(--text-light);font-size:14px">${t('setari_protocol_gol')}</p>`}
@@ -2440,7 +2442,7 @@ function renderSetari() {
       </div>
       <div class="form-group">
         <label>${t('setari_email_label_adresa')}</label>
-        <input type="email" id="set-email" value="${trt.email || ''}" placeholder="parinte@email.com">
+        <input type="email" id="set-email" value="${trt.email || ''}" placeholder="xxx@gmail.com">
       </div>
       <button class="btn btn-outline" id="btn-salveaza-email">${t('salveaza')}</button>
 
