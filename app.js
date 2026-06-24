@@ -938,12 +938,10 @@ const LINK_DONATIE   = 'https://revolut.me/denisalvcr';
 let S = {
   data: null,              // toate datele salvate
   tab: 'acasa',            // tab activ: acasa | simptome | stocuri | istoric | setari
-  modal: null,             // modal activ sau null
   timers: {},              // timere active
   timerStepIdx: null,      // indexul pasului curent în buildPasi() — null = neînceput
   timerDone: false,        // timer-ul curent a expirat
   onb: { step: 1, d: {} }, // onboarding state
-  istoricSubtab: 'grafic', // subtab istoric
   simptomeCurate: false,   // după salvare, arată ecran curat
   simptomeData: null,      // data selectată în tab Simptome (null = azi)
   ejsExpanded: false,      // formular EmailJS expandat în Setări
@@ -1184,13 +1182,6 @@ function zileRamasePas(tratament, ziua) {
     if (ziua <= contor) return contor - ziua + 1;
   }
   return null; // ultimul pas (nelimitat)
-}
-
-function getOS() {
-  const ua = navigator.userAgent;
-  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
-  if (/android/i.test(ua)) return 'android';
-  return 'other';
 }
 
 function toast(msg, durata = 3000) {
@@ -1547,7 +1538,7 @@ function renderAcasa() {
         ${t('acasa_instalare_text')}
       </div>
       <div style="display:flex;gap:8px">
-        <a href="ghid-instalare.html" target="_blank" class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none">${t('acasa_instalare_vezi_cum')}</a>
+        <a href="${LINK_GHID}" target="_blank" class="btn btn-primary" style="flex:1;text-align:center;text-decoration:none">${t('acasa_instalare_vezi_cum')}</a>
         <button class="btn btn-outline" id="btn-ascunde-banner-instalare">${t('acasa_instalare_am_facut')}</button>
       </div>
     </div>
@@ -4371,8 +4362,6 @@ function attachSetariEvents() {
     S.data.tratamente = [];
     S.data.activId = null;
     render();
-    // Patch onb finish pentru a adăuga, nu înlocui
-    const origNext = onbNext;
   });
 
   // Limbă
@@ -4395,18 +4384,6 @@ function attachSetariEvents() {
     const trt = tratamentActiv();
     if (!trt) return;
     showEditProtocol(trt);
-  });
-
-  // Buton ✏️ lângă linkul Staloral de pe Acasă
-  document.getElementById('btn-edit-link-staloral')?.addEventListener('click', () => {
-    S.tab = 'setari';
-    document.getElementById('scroll-area').innerHTML = renderTab();
-    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === 'setari'));
-    attachTabEvents();
-    setTimeout(() => {
-      document.getElementById('input-link-staloral')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      document.getElementById('input-link-staloral')?.focus();
-    }, 100);
   });
 
   // Link Staloral custom
@@ -4520,7 +4497,7 @@ function showEditProtocol(trt) {
 
   document.getElementById('ep-save').addEventListener('click', () => {
     protocol.forEach((_, i) => {
-      const row = document.querySelector(`[data-row-idx="${i}"]`);
+      const row = document.querySelector(`[data-idx="${i}"]`);
       if (!row) return;
       if (protocol[i].tipData === 'calendar') {
         protocol[i].dataStart = row.querySelector('.pr-data-start')?.value || protocol[i].dataStart;
