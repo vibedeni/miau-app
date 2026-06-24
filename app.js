@@ -1395,6 +1395,13 @@ function bip(frecventa = 880, durata = 0.3) {
 function render() {
   const app = document.getElementById('app');
 
+  // Dacă limba nu a fost încă aleasă → ecran de alegere a limbii (primul ecran absolut)
+  if (!S.data.lang) {
+    app.innerHTML = renderLangSelect();
+    attachLangSelectEvents();
+    return;
+  }
+
   // Dacă nu există niciun tratament → onboarding
   if (!S.data.tratamente.length) {
     app.innerHTML = renderOnboarding();
@@ -2250,13 +2257,13 @@ function renderSetari() {
 
   const continutLimba = `
     <div style="display:flex;gap:10px">
-      <button onclick="setLang('ro')"
+      <button data-lang-set="ro"
         style="flex:1;padding:12px;border-radius:12px;cursor:pointer;text-align:center;font-weight:700;font-size:15px;
           background:${lang==='ro'?'var(--teal-light)':'var(--bg)'};
           border:2px solid ${lang==='ro'?'var(--teal)':'transparent'};color:var(--text)">
         ${lang==='ro' ? '✓ ' : ''}${t('setari_limba_ro')}
       </button>
-      <button onclick="setLang('en')"
+      <button data-lang-set="en"
         style="flex:1;padding:12px;border-radius:12px;cursor:pointer;text-align:center;font-weight:700;font-size:15px;
           background:${lang==='en'?'var(--teal-light)':'var(--bg)'};
           border:2px solid ${lang==='en'?'var(--teal)':'transparent'};color:var(--text)">
@@ -2549,6 +2556,31 @@ function renderSetari() {
 //  ONBOARDING — Wizard multi-step
 // ============================================================
 
+function renderLangSelect() {
+  return `
+    <div class="onboarding">
+      <div class="welcome-paw" style="text-align:center;margin-top:40px">
+        <span class="big-paw">🐾</span>
+        <h2>Alege limba · Choose your language</h2>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:0 8px;margin-top:24px">
+        <button data-lang-set="ro" class="btn btn-primary btn-large" style="width:100%">
+          🇷🇴 Română
+        </button>
+        <button data-lang-set="en" class="btn btn-primary btn-large" style="width:100%">
+          🇬🇧 English
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function attachLangSelectEvents() {
+  document.querySelectorAll('[data-lang-set]').forEach(btn => {
+    btn.addEventListener('click', () => setLang(btn.dataset.langSet));
+  });
+}
+
 function renderOnboarding() {
   const { step, d } = S.onb;
   const totalSteps = 6;
@@ -2563,25 +2595,9 @@ function renderOnboarding() {
     6: t('onb_titlu_pas6')
   };
 
-  const lang = currentLang();
-
   return `
     <div class="onboarding">
       <div class="onboarding-header">
-        <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
-          <button onclick="setLang('ro')"
-            style="padding:5px 10px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;
-              background:${lang==='ro'?'var(--teal-light)':'var(--bg)'};
-              border:1px solid ${lang==='ro'?'var(--teal)':'transparent'};color:var(--text)">
-            ${lang==='ro' ? '✓ ' : ''}RO
-          </button>
-          <button onclick="setLang('en')"
-            style="padding:5px 10px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;
-              background:${lang==='en'?'var(--teal-light)':'var(--bg)'};
-              border:1px solid ${lang==='en'?'var(--teal)':'transparent'};color:var(--text)">
-            ${lang==='en' ? '✓ ' : ''}EN
-          </button>
-        </div>
         <h2>${titluriPasi[step]}</h2>
         <div class="step-indicator">${t('onb_pasul_x_din_y', { step, total: totalSteps })}</div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -4355,6 +4371,11 @@ function attachSetariEvents() {
     render();
     // Patch onb finish pentru a adăuga, nu înlocui
     const origNext = onbNext;
+  });
+
+  // Limbă
+  document.querySelectorAll('[data-lang-set]').forEach(btn => {
+    btn.addEventListener('click', () => setLang(btn.dataset.langSet));
   });
 
   // Temă
