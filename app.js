@@ -2563,9 +2563,25 @@ function renderOnboarding() {
     6: t('onb_titlu_pas6')
   };
 
+  const lang = currentLang();
+
   return `
     <div class="onboarding">
       <div class="onboarding-header">
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
+          <button onclick="setLang('ro')"
+            style="padding:5px 10px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;
+              background:${lang==='ro'?'var(--teal-light)':'var(--bg)'};
+              border:1px solid ${lang==='ro'?'var(--teal)':'transparent'};color:var(--text)">
+            ${lang==='ro' ? '✓ ' : ''}RO
+          </button>
+          <button onclick="setLang('en')"
+            style="padding:5px 10px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;
+              background:${lang==='en'?'var(--teal-light)':'var(--bg)'};
+              border:1px solid ${lang==='en'?'var(--teal)':'transparent'};color:var(--text)">
+            ${lang==='en' ? '✓ ' : ''}EN
+          </button>
+        </div>
         <h2>${titluriPasi[step]}</h2>
         <div class="step-indicator">${t('onb_pasul_x_din_y', { step, total: totalSteps })}</div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
