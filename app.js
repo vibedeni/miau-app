@@ -3667,7 +3667,8 @@ function showEditAntihistaminic(trt) {
   const a = trt.antihistaminic;
   let tmpTip = a.tip || 'pastile';
   let tmpPoz = a.pozitie || 'inainte';
-  let tmpActiv = !!a.activ;
+  // Implicit ON: singurul mod de a ajunge aici cu activ=false e butonul "+ Adaugă antihistaminic".
+  let tmpActiv = true;
 
   showOverlay(`
     <div class="modal">
@@ -3682,11 +3683,11 @@ function showEditAntihistaminic(trt) {
           <div style="font-size:12px;color:var(--text-light)">${t('modal_anti_activ_sub')}</div>
         </div>
         <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer">
-          <input type="checkbox" id="anti-activ" ${a.activ ? 'checked' : ''}
+          <input type="checkbox" id="anti-activ" ${tmpActiv ? 'checked' : ''}
             style="opacity:0;width:0;height:0;position:absolute">
-          <span id="anti-activ-track" style="position:absolute;inset:0;background:${a.activ ? 'var(--teal)' : '#CCC'};
+          <span id="anti-activ-track" style="position:absolute;inset:0;background:${tmpActiv ? 'var(--teal)' : '#CCC'};
             border-radius:13px;transition:0.2s"></span>
-          <span id="anti-activ-thumb" style="position:absolute;left:${a.activ ? '24px' : '2px'};top:2px;
+          <span id="anti-activ-thumb" style="position:absolute;left:${tmpActiv ? '24px' : '2px'};top:2px;
             width:22px;height:22px;background:white;border-radius:50%;transition:0.2s;
             box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
         </label>
