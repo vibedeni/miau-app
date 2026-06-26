@@ -2348,9 +2348,7 @@ function renderSetari() {
           const inainte = extrasActivi.filter(p => p.pozitie === 'inainte');
           const dupa = extrasActivi.filter(p => !p.pozitie || p.pozitie === 'dupa');
 
-          return `
-            <!-- Antihistaminic -->
-            ${anti.activ ? rowItem(
+          const antiRow = anti.activ ? rowItem(
               anti.tip === 'pastile' ? '💊' : '💧',
               t('setari_flux_antihistaminic_label', { nume: anti.nume }),
               t('setari_flux_antihistaminic_sub', { minute: anti.minute, pozitie: anti.pozitie === 'inainte' ? t('setari_flux_inainte_de') : t('setari_flux_dupa'), stoc: anti.stoc }),
@@ -2362,7 +2360,12 @@ function renderSetari() {
                   ${t('setari_flux_adauga_antihistaminic')}
                 </button>
               </div>
-            `}
+            `;
+          const antiDupa = anti.activ && anti.pozitie === 'dupa';
+
+          return `
+            <!-- Antihistaminic (când e ÎNAINTE de Staloral, sau neactivat încă) -->
+            ${!antiDupa ? antiRow : ''}
 
             <!-- Pași personalizați ÎNAINTE -->
             ${inainte.map((p, i) => rowItem(
@@ -2378,6 +2381,9 @@ function renderSetari() {
             <!-- Staloral + asteptare (fixe) -->
             ${rowItem('💧', t('setari_flux_staloral_titlu'), t('setari_flux_staloral_sub'), `<span style="font-size:11px;color:var(--text-light);white-space:nowrap">${t('setari_flux_fix')}</span>`)}
             ${rowItem('⏳', t('setari_flux_asteptare_titlu'), t('setari_flux_asteptare_sub'), `<span style="font-size:11px;color:var(--text-light);white-space:nowrap">${t('setari_flux_fix')}</span>`)}
+
+            <!-- Antihistaminic (când e DUPĂ Staloral) -->
+            ${antiDupa ? antiRow : ''}
 
             <!-- Pași personalizați DUPĂ -->
             ${dupa.map((p, i) => rowItem(
