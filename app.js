@@ -112,7 +112,7 @@ const LANG = {
     // -- donatii --
     donatii_titlu: '💛 Susține aplicația',
     donatii_text: 'Miau e gratuită și fără reclame.<br>O cafea pentru developer (10–50 lei) ajută mult!',
-    donatii_btn: '☕ Donează',
+    donatii_btn: '☕ Cumpără-ne o cafea',
 
     // -- linkuri --
     link_staloral: 'Caută Staloral — Farmacia Tei',
@@ -541,7 +541,7 @@ const LANG = {
 
     donatii_titlu: '💛 Support the app',
     donatii_text: "Miau is free and ad-free.<br>A coffee for the developer (10–50 lei) helps a lot!",
-    donatii_btn: '☕ Donate',
+    donatii_btn: '☕ Buy us a coffee',
 
     link_staloral: 'Search Staloral — Farmacia Tei',
     link_medradar: 'MedRadar — pharmacy stock',
