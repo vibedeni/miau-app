@@ -40,8 +40,15 @@
     // Înregistrare Service Worker (PWA offline)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .catch(err => console.log('SW error:', err));
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          // Forțează verificarea unui nou SW la fiecare încărcare (important pe iOS)
+          reg.update();
+        }).catch(err => console.log('SW error:', err));
+
+        // Când un nou SW preia controlul, reîncarcă pagina ca să servească fișierele noi din cache
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
       });
     }
   </script>
