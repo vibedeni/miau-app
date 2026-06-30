@@ -54,6 +54,14 @@ const LANG = {
     nu: 'Nu',
     niciun_tratament_activ: 'Niciun tratament activ.',
 
+    // -- import prompt (ecran înainte de onboarding) --
+    import_prompt_titlu: 'Bine ai venit în Miau! 🐾',
+    import_prompt_subtitlu: 'Ai mai folosit Miau pe alt telefon?',
+    import_prompt_nou: '✨ Sunt utilizator nou',
+    import_prompt_nou_desc: 'Configurez tratamentul de la zero',
+    import_prompt_backup: '📂 Am un backup JSON',
+    import_prompt_backup_desc: 'Import date de pe alt telefon',
+
     // -- limbă (settings) --
     setari_limba_titlu: 'Limbă',
     setari_limba_ro: 'Română',
@@ -489,6 +497,14 @@ const LANG = {
     da: 'Yes',
     nu: 'No',
     niciun_tratament_activ: 'No active treatment.',
+
+    // -- import prompt --
+    import_prompt_titlu: 'Welcome to Miau! 🐾',
+    import_prompt_subtitlu: 'Have you used Miau on another phone?',
+    import_prompt_nou: '✨ I\'m a new user',
+    import_prompt_nou_desc: 'Set up my treatment from scratch',
+    import_prompt_backup: '📂 I have a JSON backup',
+    import_prompt_backup_desc: 'Import data from another phone',
 
     setari_limba_titlu: 'Language',
     setari_limba_ro: 'Română',
@@ -1395,8 +1411,13 @@ function render() {
     return;
   }
 
-  // Dacă nu există niciun tratament → onboarding
+  // Dacă nu există niciun tratament → ecran import sau onboarding
   if (!S.data.tratamente.length) {
+    if (!S.data.skipImportPrompt) {
+      app.innerHTML = renderImportPrompt();
+      attachImportPromptEvents();
+      return;
+    }
     app.innerHTML = renderOnboarding();
     attachOnboardingEvents();
     return;
@@ -1804,14 +1825,14 @@ function renderSimptome() {
           const sel = simptomeZi.find(x => x.id === s.id);
           return `
             <div class="symptom-row" data-id="${s.id}"
-              style="padding:12px;border:2px solid ${sel ? 'var(--teal)' : '#DDF0ED'};border-radius:10px;
-                     background:${sel ? 'var(--teal-light)' : 'white'};cursor:pointer;transition:all 0.15s">
+              style="padding:12px;border:2px solid ${sel ? 'var(--teal)' : 'var(--border)'};border-radius:10px;
+                     background:${sel ? 'var(--teal-light)' : 'var(--card)'};cursor:pointer;transition:all 0.15s">
               <div style="display:flex;align-items:center;gap:10px;pointer-events:none">
                 <span style="font-size:20px">${s.label.split(' ')[0]}</span>
                 <span style="font-size:14px;flex:1;font-weight:${sel ? '600' : '400'}">
                   ${tSimptom(s.id)}
                 </span>
-                <span style="font-size:18px;color:${sel ? 'var(--teal)' : '#CCC'}">${sel ? '✓' : '○'}</span>
+                <span style="font-size:18px;color:${sel ? 'var(--teal)' : 'var(--text-light)'}">${sel ? '✓' : '○'}</span>
               </div>
               ${sel ? `
                 <div class="severity-row" style="margin-top:10px" onclick="event.stopPropagation()">
@@ -1824,7 +1845,7 @@ function renderSimptome() {
                   <input type="text" class="altele-detalii" placeholder="${t('simptome_placeholder_detalii')}"
                     value="${sel.detalii || ''}"
                     onclick="event.stopPropagation()"
-                    style="margin-top:8px;width:100%;padding:8px 10px;border:1px solid #DDF0ED;
+                    style="margin-top:8px;width:100%;padding:8px 10px;border:1px solid var(--border);
                       border-radius:8px;font-size:13px;box-sizing:border-box">
                 ` : ''}
               ` : ''}
@@ -2577,6 +2598,63 @@ function renderLangSelect() {
 function attachLangSelectEvents() {
   document.querySelectorAll('[data-lang-set]').forEach(btn => {
     btn.addEventListener('click', () => setLang(btn.dataset.langSet));
+  });
+}
+
+function renderImportPrompt() {
+  return `
+    <div class="onboarding">
+      <div class="welcome-paw" style="text-align:center;margin-top:40px">
+        <span class="big-paw">🐾</span>
+        <h2 style="margin-top:12px">${t('import_prompt_titlu')}</h2>
+        <p style="font-size:15px;color:var(--text-light);margin-top:8px">${t('import_prompt_subtitlu')}</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:0 8px;margin-top:32px">
+        <button id="btn-import-prompt-nou" class="btn btn-primary btn-large" style="width:100%;text-align:left;display:flex;flex-direction:column;gap:2px;padding:16px 20px">
+          <span style="font-size:16px;font-weight:700">${t('import_prompt_nou')}</span>
+          <span style="font-size:13px;opacity:0.8;font-weight:400">${t('import_prompt_nou_desc')}</span>
+        </button>
+        <button id="btn-import-prompt-backup" class="btn btn-outline btn-large" style="width:100%;text-align:left;display:flex;flex-direction:column;gap:2px;padding:16px 20px">
+          <span style="font-size:16px;font-weight:700">${t('import_prompt_backup')}</span>
+          <span style="font-size:13px;opacity:0.7;font-weight:400">${t('import_prompt_backup_desc')}</span>
+        </button>
+        <input type="file" id="import-prompt-file" accept=".json" style="display:none">
+      </div>
+    </div>
+  `;
+}
+
+function attachImportPromptEvents() {
+  document.getElementById('btn-import-prompt-nou')?.addEventListener('click', () => {
+    S.data.skipImportPrompt = true;
+    saveData();
+    render();
+  });
+
+  document.getElementById('btn-import-prompt-backup')?.addEventListener('click', () => {
+    document.getElementById('import-prompt-file')?.click();
+  });
+
+  document.getElementById('import-prompt-file')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast(t('toast_fisier_prea_mare')); e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const eroare = valideazaImport(data);
+        if (eroare) { toast(`❌ ${eroare}`); e.target.value = ''; return; }
+        confirmDialog(t('confirm_import', { n: data.tratamente.length }), () => {
+          S.data = data;
+          saveData();
+          render();
+          toast(t('toast_date_importate'));
+        }, { danger: true, textConfirma: t('confirm_import_btn') });
+      } catch { toast(t('toast_fisier_invalid')); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
   });
 }
 
